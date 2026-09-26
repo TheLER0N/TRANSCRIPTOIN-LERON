@@ -21,6 +21,8 @@
     <PackageReference Include="InputSimulatorPlus" Version="1.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Whisper.net" Version="1.9.2-preview1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.2-preview1" />
   </ItemGroup>
 
 </Project>

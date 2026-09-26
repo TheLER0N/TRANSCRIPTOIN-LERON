@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 19:04:33
+  GENERATED      : 26.09.2026 20:18:56
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -13,14 +13,18 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   +---command.exe
 |   +---ggml.dll
 |   +---ggml-base.dll
+|   +---ggml-blas.dll
 |   +---ggml-cpu.dll
+|   +---libopenblas.dll
 |   +---main.exe
 |   +---Release
 |   |   +---bench.exe
 |   |   +---command.exe
 |   |   +---ggml.dll
 |   |   +---ggml-base.dll
+|   |   +---ggml-blas.dll
 |   |   +---ggml-cpu.dll
+|   |   +---libopenblas.dll
 |   |   +---main.exe
 |   |   +---SDL2.dll
 |   |   +---stream.exe
@@ -73,7 +77,8 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   |   +---NHotkeyService.cs
 |   |   +---SettingsService.cs
 |   |   +---TempWavWriter.cs
-|   |   \---WhisperCliService.cs
+|   |   +---WhisperCliService.cs
+|   |   \---WhisperNetService.cs
 |   +---ViewModels
 |   |   +---MainViewModel.cs
 |   |   \---SettingsViewModel.cs
@@ -194,7 +199,7 @@ pause
 
 ------------------------------------------------
 FILE: download-whisper-cli.bat
-SIZE: 2723 bytes
+SIZE: 2886 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -209,46 +214,52 @@ echo ================================================================
 echo   LERON-AUDIO · DOWNLOAD WHISPER-CLI
 echo ================================================================
 echo.
-echo   Бинарник: whisper-cli.exe (Windows x64)
+echo   Бинарник: whisper-cli.exe (Windows x64, приоритет BLAS-сборке)
 echo   Папка   : %DEST%
 echo.
 
+if /i "%~1"=="force" (
+    echo   [i] Режим force: удаляю старую папку build\ ...
+    if exist "%DEST%" rd /s /q "%DEST%"
+)
+
 if exist "%DEST%\whisper-cli.exe" if exist "%DEST%\whisper.dll" (
     echo   [i] whisper-cli.exe уже есть в build\. Скачивание не требуется.
+    echo       Для принудительной замены запусти: download-whisper-cli.bat force
     pause
     exit /b 0
 )
 
 if not exist "%DEST%" mkdir "%DEST%"
 
-if not exist "%DEST%\whisper-cli.exe" (
-    set "OK="
-    for %%U in (
-        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-bin-x64.zip
-        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-blas-bin-x64.zip
-        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.4/whisper-bin-x64.zip
-    ) do if not defined OK (
-        echo   [i] Пробую: %%U
-        curl.exe -fL --progress-bar -o "%ZIP%" "%%U"
-        if not errorlevel 1 set "OK=1"
-    )
-    if not defined OK (
-        echo.
-        echo   [XX] Не удалось скачать ни с одного зеркала. Скачай вручную:
-        echo       https://github.com/ggml-org/whisper.cpp/releases
-        echo       и распакуй whisper-cli.exe в папку: %DEST%
-        pause
-        exit /b 1
-    )
-    echo   [i] Распаковываю в %DEST% ...
-    tar.exe -xf "%ZIP%" -C "%DEST%"
-    if !errorlevel! neq 0 (
-        echo   [XX] Распаковка не удалась.
-        pause
-        exit /b 1
-    )
-    del "%ZIP%" >nul 2>&1
+set "OK="
+for %%U in (
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-blas-bin-x64.zip
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-bin-x64.zip
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.4/whisper-blas-bin-x64.zip
+) do if not defined OK (
+    echo   [i] Пробую: %%U
+    curl.exe -fL --progress-bar -o "%ZIP%" "%%U"
+    if not errorlevel 1 set "OK=1"
 )
+
+if not defined OK (
+    echo.
+    echo   [XX] Не удалось скачать ни с одного зеркала. Скачай вручную:
+    echo       https://github.com/ggml-org/whisper.cpp/releases
+    echo       и распакуй whisper-cli.exe в папку: %DEST%
+    pause
+    exit /b 1
+)
+
+echo   [i] Распаковываю в %DEST% ...
+tar.exe -xf "%ZIP%" -C "%DEST%"
+if !errorlevel! neq 0 (
+    echo   [XX] Распаковка не удалась.
+    pause
+    exit /b 1
+)
+del "%ZIP%" >nul 2>&1
 
 :: Если exe лёг в подпапку архива — переносим ВСЁ её содержимое в build\
 if not exist "%DEST%\whisper-cli.exe" (
@@ -575,7 +586,7 @@ SIZE: 204 bytes
 
 ------------------------------------------------
 FILE: code\App.xaml.cs
-SIZE: 2216 bytes
+SIZE: 2335 bytes
 ------------------------------------------------
 using System;
 using System.Windows;
@@ -612,7 +623,8 @@ public partial class App : Application
     {
         services.AddSingleton<SettingsService>();
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
-        services.AddSingleton<IWhisperService, WhisperCliService>();
+        // In-process распознавание через Whisper.Net вместо внешнего whisper-cli.exe
+        services.AddSingleton<IWhisperService, WhisperNetService>();
         services.AddSingleton<IHotkeyService, NHotkeyService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<MainViewModel>();
@@ -688,7 +700,7 @@ EndGlobal
 
 ------------------------------------------------
 FILE: code\Leron.Audio.csproj
-SIZE: 986 bytes
+SIZE: 1140 bytes
 ------------------------------------------------
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -713,6 +725,8 @@ SIZE: 986 bytes
     <PackageReference Include="InputSimulatorPlus" Version="1.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="Whisper.Net" Version="1.9.2-preview1" />
+    <PackageReference Include="Whisper.Net.Runtime" Version="1.9.2-preview1" />
   </ItemGroup>
 
 </Project>
@@ -1466,7 +1480,7 @@ public sealed class TempWavWriter : IDisposable
 
 ------------------------------------------------
 FILE: code\Services\WhisperCliService.cs
-SIZE: 2659 bytes
+SIZE: 6169 bytes
 ------------------------------------------------
 using System;
 using System.Diagnostics;
@@ -1478,6 +1492,8 @@ namespace Leron.Audio.Services;
 
 public sealed class WhisperCliService : IWhisperService
 {
+    private const int CrashFailfast = -1073740791; // 0xC0000409: тихий abort внутри whisper-cli
+    private const uint GgmlMagic = 0x67676d6cu;    // "ggml"
     private readonly SettingsService _settings;
 
     public WhisperCliService(SettingsService settings)
@@ -1495,13 +1511,61 @@ public sealed class WhisperCliService : IWhisperService
             ?? throw new FileNotFoundException(
                 "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
 
+        ValidateModelFile(model);
+
+        // Только вариации потоков: флагов --no-mmap / --flash-attn в cli v1.8.5 нет
+        // (неизвестный флаг = usage + выход без распознавания).
+        foreach (var threads in new[] { 4, 1 })
+        {
+            var result = await RunOnce(cli, model, wavPath, threads, ct);
+            if (result.Success) return result.Text;
+            if (result.ExitCode != CrashFailfast)
+            {
+                throw new InvalidOperationException(
+                    $"whisper-cli завершился с кодом {result.ExitCode}: {result.ErrorTail} (лог: {result.LogPath})");
+            }
+        }
+
+        throw new InvalidOperationException(
+            "whisper-cli аварийно завершился (0xC0000409) на 4 и 1 потоке. " +
+            "Запусти download-whisper-cli.bat force для замены сборки на BLAS; " +
+            "если не поможет — удали ggml-large-v3-turbo.bin и запусти download-model.bat.");
+    }
+
+    private static void ValidateModelFile(string model)
+    {
+        var info = new FileInfo(model);
+        if (!info.Exists || info.Length < 1_000_000)
+        {
+            throw new InvalidOperationException(
+                $"Модель {model} пустая или слишком маленькая. Удали её и запусти download-model.bat.");
+        }
+
+        using var fs = new FileStream(model, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var header = new byte[4];
+        var read = fs.Read(header, 0, 4);
+        // Магия GGML хранится как uint32 little-endian: байты на диске 6C 6D 67 67.
+        uint magic = (uint)(header[0] | (header[1] << 8) | (header[2] << 16) | (header[3] << 24));
+        if (read != 4 || magic != GgmlMagic)
+        {
+            throw new InvalidOperationException(
+                $"Модель {model} повреждена (magic {magic:X8} вместо 67676D6C). Удали её и запусти download-model.bat.");
+        }
+    }
+
+    private sealed record RunResult(
+        bool Success, string Text, int ExitCode, string ErrorTail, string LogPath);
+
+    private async Task<RunResult> RunOnce(
+        string cli, string model, string wavPath, int threads, CancellationToken ct)
+    {
         var outBase = Path.Combine(Path.GetTempPath(), "leron_whisper_" + Guid.NewGuid().ToString("N"));
 
         var psi = new ProcessStartInfo
         {
             FileName = cli,
             WorkingDirectory = Path.GetDirectoryName(cli) ?? AppContext.BaseDirectory,
-            Arguments = $"-m \"{model}\" -f \"{wavPath}\" -otxt -of \"{outBase}\" -l auto -np -nt",
+            Arguments = $"-m \"{model}\" -f \"{wavPath}\" -otxt -of \"{outBase}\" -l auto -nt -t {threads}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -1511,7 +1575,9 @@ public sealed class WhisperCliService : IWhisperService
         using var process = new Process { StartInfo = psi };
         process.Start();
 
+        var outTask = process.StandardOutput.ReadToEndAsync(ct);
         var errTask = process.StandardError.ReadToEndAsync(ct);
+
         try
         {
             await process.WaitForExitAsync(ct);
@@ -1522,19 +1588,38 @@ public sealed class WhisperCliService : IWhisperService
             throw;
         }
 
-        var err = await errTask;
+        var stdout = await outTask;
+        var stderr = await errTask;
         var txtPath = outBase + ".txt";
 
-        if (process.ExitCode != 0 || !File.Exists(txtPath))
+        if (process.ExitCode == 0 && File.Exists(txtPath))
         {
-            var tail = err.Length > 400 ? err[^400..] : err;
-            throw new InvalidOperationException($"whisper-cli завершился с кодом {process.ExitCode}: {tail}");
+            var text = await File.ReadAllTextAsync(txtPath, ct);
+            try { File.Delete(txtPath); } catch { }
+            return new RunResult(true, text.Trim(), 0, string.Empty, string.Empty);
         }
 
-        var text = await File.ReadAllTextAsync(txtPath, ct);
-        try { File.Delete(txtPath); } catch { }
+        var logPath = WriteLog(stdout, stderr, process.ExitCode);
+        var combined = (stderr + Environment.NewLine + stdout).Trim();
+        var tail = combined.Length > 300 ? combined[^300..] : combined;
+        return new RunResult(false, string.Empty, process.ExitCode, tail, logPath);
+    }
 
-        return text.Trim();
+    private string WriteLog(string stdout, string stderr, int exitCode)
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "temp");
+        Directory.CreateDirectory(dir);
+        var logPath = Path.Combine(dir, "whisper_last_log.txt");
+        try
+        {
+            File.WriteAllText(logPath,
+                $"ExitCode: {exitCode}{Environment.NewLine}--- STDERR ---{Environment.NewLine}{stderr}{Environment.NewLine}--- STDOUT ---{Environment.NewLine}{stdout}");
+        }
+        catch
+        {
+            return string.Empty;
+        }
+        return logPath;
     }
 
     private string? ResolveModel()
@@ -1543,6 +1628,82 @@ public sealed class WhisperCliService : IWhisperService
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
             return configured;
         return ModelLocator.FindModel();
+    }
+}
+
+------------------------------------------------
+FILE: code\Services\WhisperNetService.cs
+SIZE: 2119 bytes
+------------------------------------------------
+using System;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Whisper.Net;
+
+namespace Leron.Audio.Services;
+
+public sealed class WhisperNetService : IWhisperService, IDisposable
+{
+    private readonly SettingsService _settings;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private WhisperFactory? _factory;
+    private string? _factoryModelPath;
+
+    public WhisperNetService(SettingsService settings)
+    {
+        _settings = settings;
+    }
+
+    public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
+    {
+        var model = ResolveModel()
+            ?? throw new FileNotFoundException(
+                "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
+
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (_factory is null || _factoryModelPath != model)
+            {
+                _factory?.Dispose();
+                _factory = WhisperFactory.Create(model);
+                _factoryModelPath = model;
+            }
+
+            using var processor = _factory.CreateBuilder()
+                .WithLanguage("auto")
+                .Build();
+
+            await using var stream = File.OpenRead(wavPath);
+            var sb = new StringBuilder();
+            await foreach (var segment in processor.ProcessAsync(stream, ct))
+            {
+                sb.Append(segment.Text.Trim());
+                sb.Append(' ');
+            }
+            return sb.ToString().Trim();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private string? ResolveModel()
+    {
+        var configured = _settings.Current.ModelPath;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+            return configured;
+        return ModelLocator.FindModel();
+    }
+
+    public void Dispose()
+    {
+        _factory?.Dispose();
+        _factory = null;
+        _gate.Dispose();
     }
 }
 

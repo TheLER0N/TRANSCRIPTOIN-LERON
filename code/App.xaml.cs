@@ -33,7 +33,8 @@ public partial class App : Application
     {
         services.AddSingleton<SettingsService>();
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
-        services.AddSingleton<IWhisperService, WhisperCliService>();
+        // In-process распознавание через Whisper.Net вместо внешнего whisper-cli.exe
+        services.AddSingleton<IWhisperService, WhisperNetService>();
         services.AddSingleton<IHotkeyService, NHotkeyService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<MainViewModel>();
