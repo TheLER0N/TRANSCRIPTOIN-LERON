@@ -1,12 +1,13 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 17:17:08
+  GENERATED      : 26.09.2026 17:44:16
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
 ==================== STRUCTURE ====================
 
 C:\Users\Пользователь\Desktop\LERON-AUDIO
++---.gitignore
 +---code
 |   +---App.xaml
 |   +---App.xaml.cs
@@ -19,6 +20,7 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |       +---LevelMeter.cs
 |       +---NAudioCaptureService.cs
 |       \---TempWavWriter.cs
++---download-model.bat
 +---ggml-large-v3-turbo.bin
 +---LERON-AUDIO_report.txt
 +---LERON-AUDIO_report_files.tmp
@@ -44,8 +46,103 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 ==================== SOURCE FILES ====================
 
 ------------------------------------------------
+FILE: .gitignore
+SIZE: 394 bytes
+------------------------------------------------
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+code/bin/
+code/obj/
+
+# Large AI models and binaries
+*.bin
+whisper-cli.exe
+
+# Temp, releases and reports
+*.tmp
+temp/
+release/
+release-build/
+LERON-AUDIO_report_files.tmp
+
+# User-specific files
+*.user
+settings.json
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / VS
+.vs/
+.idea/
+
+------------------------------------------------
+FILE: download-model.bat
+SIZE: 1745 bytes
+------------------------------------------------
+@echo off
+chcp 65001 >nul 2>&1
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
+
+set "MODEL=ggml-large-v3-turbo.bin"
+set "URL=https://huggingface.co/ggerganov/whisper.cpp/resolve/main/%MODEL%"
+
+echo.
+echo ================================================================
+echo   LERON-AUDIO · DOWNLOAD WHISPER MODEL
+echo ================================================================
+echo.
+echo   Файл : %MODEL% (~1.5 ГБ)
+echo   Источник: Hugging Face (whisper.cpp)
+echo.
+
+if exist "%MODEL%" (
+    echo   [i] Модель уже существует в папке проекта.
+    echo       Скачивание не требуется.
+    pause
+    exit /b 0
+)
+
+echo   [i] Начинаю загрузку... Это может занять несколько минут.
+echo.
+
+:: Используем PowerShell для скачивания, отключаем прогресс-бар для скорости
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+"$ProgressPreference = 'SilentlyContinue';" ^
+"$url = '%URL%';" ^
+"$out = '%MODEL%';" ^
+"try {" ^
+"    Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing;" ^
+"    Write-Host '';" ^
+"    Write-Host '  [OK] Модель успешно скачана!';" ^
+"} catch {" ^
+"    Write-Host '';" ^
+"    Write-Host ('  [XX] Ошибка загрузки: ' + $_.Exception.Message);" ^
+"    Write-Host '      Проверь интернет-соединение или скачай файл вручную:';" ^
+"    Write-Host ('      ' + $url);" ^
+"    exit 1;" ^
+"}"
+
+if exist "%MODEL%" (
+    echo.
+    echo   Теперь можно запускать start.bat или собирать Release.
+)
+
+echo.
+pause
+
+------------------------------------------------
 FILE: push-to-github.bat
-SIZE: 3806 bytes
+SIZE: 3922 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -53,10 +150,10 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 echo.
 echo ================================================================
-echo LERON GUI · PUSH TO GITHUB
+echo LERON-AUDIO · PUSH TO GITHUB
 echo ================================================================
 echo.
-echo Репо: https://github.com/TheLER0N/LERON-GUI
+echo Репо: https://github.com/TheLER0N/TRANSCRIPTOIN-LERON
 echo.
 echo [1] Полная перезапись (force push) — удалит старую историю на GitHub
 echo [2] Обновление — подтянуть историю и добавить коммит поверх
@@ -72,39 +169,39 @@ goto :end
 echo.
 echo [!] Удаляю старую историю (.git)...
 if exist ".git" (
-attrib -h -s -r ".git" /s /d 2>nul
-rmdir /s /q ".git"
+    attrib -h -s -r ".git" /s /d 2>nul
+    rmdir /s /q ".git"
 )
 git init -b main
 git config core.autocrlf true
 git config core.safecrlf warn
-git remote add origin https://github.com/TheLER0N/LERON-GUI.git 2>nul
+git remote add origin https://github.com/TheLER0N/TRANSCRIPTOIN-LERON.git 2>nul
 goto :commit
 
 :normal_push
 echo.
 echo [i] Обновление существующей истории...
 if not exist ".git" (
-git init -b main
-git config core.autocrlf true
-git config core.safecrlf warn
-git remote add origin https://github.com/TheLER0N/LERON-GUI.git 2>nul
+    git init -b main
+    git config core.autocrlf true
+    git config core.safecrlf warn
+    git remote add origin https://github.com/TheLER0N/TRANSCRIPTOIN-LERON.git 2>nul
 )
 echo [i] Синхронизация с GitHub (pull --rebase)...
 git fetch origin 2>nul
 git pull origin main --rebase --allow-unrelated-histories 2>nul
 if errorlevel 1 (
-echo [XX] Синхронизация через rebase не удалась.
-echo     Локальная и удалённая истории разошлись.
-echo.
-echo [a] Попробовать merge (создаст merge-коммит)
-echo [f] Сделать force push (перезапишет GitHub — удалит чужие коммиты там)
-echo [c] Отмена
-echo.
-set /p "RECOVER= Выбери [a/f/c] > "
-if /i "!RECOVER!"=="a" goto :merge_fallback
-if /i "!RECOVER!"=="f" goto :force_fallback
-goto :end
+    echo [XX] Синхронизация через rebase не удалась.
+    echo     Локальная и удалённая истории разошлись.
+    echo.
+    echo [a] Попробовать merge (создаст merge-коммит)
+    echo [f] Сделать force push (перезапишет GitHub — удалит чужие коммиты там)
+    echo [c] Отмена
+    echo.
+    set /p "RECOVER= Выбери [a/f/c] > "
+    if /i "!RECOVER!"=="a" goto :merge_fallback
+    if /i "!RECOVER!"=="f" goto :force_fallback
+    goto :end
 )
 goto :commit
 
@@ -112,9 +209,9 @@ goto :commit
 echo [i] Пробую merge...
 git merge origin/main --allow-unrelated-histories -m "merge: sync with GitHub" 2>nul
 if errorlevel 1 (
-echo [XX] Merge тоже не прошёл — есть конфликты.
-echo     Открой VS Code или другой редактор, разреши конфликты и повтори скрипт.
-goto :end
+    echo [XX] Merge тоже не прошёл — есть конфликты.
+    echo     Открой VS Code или другой редактор, разреши конфликты и повтори скрипт.
+    goto :end
 )
 goto :commit
 
@@ -134,8 +231,8 @@ git rm -r --cached . >nul 2>&1
 echo [i] Добавляю файлы по .gitignore...
 git add -A
 echo.
-set /p "MSG= Сообщение коммита [LERON GUI update] > "
-if "!MSG!"=="" set "MSG=LERON GUI update"
+set /p "MSG= Сообщение коммита [LERON-AUDIO update] > "
+if "!MSG!"=="" set "MSG=LERON-AUDIO update"
 git commit -m "!MSG!" --allow-empty
 echo.
 echo [i] Push в origin main...
@@ -157,33 +254,41 @@ pause
 
 ------------------------------------------------
 FILE: release-to-github.bat
-SIZE: 4768 bytes
+SIZE: 5802 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 set "ROOT=%~dp0"
-set "PROJ=%ROOT%program\main\MainApp.csproj"
-set "BUILD_DIR=%ROOT%GUI result"
+set "PROJ=%ROOT%code\Leron.Audio.csproj"
+set "BUILD_DIR=%ROOT%release-build"
+set "MODEL=%ROOT%ggml-large-v3-turbo.bin"
 
 echo.
 echo ================================================================
-echo   LERON · RELEASE TO GITHUB
+echo   LERON-AUDIO · RELEASE TO GITHUB
 echo ================================================================
 echo.
-echo   Репозиторий: https://github.com/TheLER0N/New-Era
+echo   Репозиторий: https://github.com/TheLER0N/TRANSCRIPTOIN-LERON
 echo.
 
 :: ── Проверка окружения ──────────────────────────────────────────
 where dotnet >nul 2>&1
 if !errorlevel! neq 0 (
-    echo   [XX] dotnet не найден. Установи .NET SDK.
+    echo   [XX] dotnet не найден. Установи .NET 8 SDK.
     pause
     exit /b 1
 )
 
 if not exist "%PROJ%" (
-    echo   [XX] MainApp.csproj не найден: %PROJ%
+    echo   [XX] Leron.Audio.csproj не найден: %PROJ%
+    pause
+    exit /b 1
+)
+
+if not exist "%MODEL%" (
+    echo   [XX] Модель Whisper не найдена: %MODEL%
+    echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
     pause
     exit /b 1
 )
@@ -196,11 +301,11 @@ if "!VER!"=="" (
     exit /b 1
 )
 
-set /p "TITLE=   Название (Enter = LERON v!VER!): "
-if "!TITLE!"=="" set "TITLE=LERON v!VER!"
+set /p "TITLE=   Название (Enter = LERON-AUDIO v!VER!): "
+if "!TITLE!"=="" set "TITLE=LERON-AUDIO v!VER!"
 
 set /p "DESC=    Описание (Enter = дефолт): "
-if "!DESC!"=="" set "DESC=LERON v!VER! — GUI с AI-агентом, WebView2 и gateway."
+if "!DESC!"=="" set "DESC=LERON-AUDIO v!VER! — локальная PTT-диктовка через Whisper.cpp."
 
 echo.
 echo ================================================================
@@ -210,6 +315,7 @@ echo   Проект   : %PROJ%
 echo   Сборка   : %BUILD_DIR%
 echo ================================================================
 echo.
+
 set /p "CONFIRM=   Продолжить? [Y/n]: "
 if /i "!CONFIRM!"=="n" (
     echo   Отменено.
@@ -219,21 +325,17 @@ if /i "!CONFIRM!"=="n" (
 
 :: ── [1/4] Сборка Release ────────────────────────────────────────
 echo.
-echo   [1/4] Гашу старый gateway...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":51234" ^| findstr "LISTENING"') do (
-    taskkill /PID %%P /F >nul 2>&1
-)
-timeout /t 1 >nul
+echo   [1/4] dotnet publish (Release)...
 
-echo   [2/4] dotnet publish (Release)...
 if exist "%BUILD_DIR%" (
-    :: Не удаляем всю папку — бережём config.json и logs
-    for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.json" "%BUILD_DIR%\*.pdb") do (
-        if /i not "%%~nxF"=="config.json" del "%%F" 2>nul
+    :: Не удаляем всю папку — бережём settings.json, если пользователь там что-то положил
+    for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.bin") do (
+        if /i not "%%~nxF"=="settings.json" del "%%F" 2>nul
     )
     if exist "%BUILD_DIR%\runtimes" rd /s /q "%BUILD_DIR%\runtimes" 2>nul
 )
-dotnet publish "%PROJ%" -c Release -o "%BUILD_DIR%" --nologo -v q
+
+dotnet publish "%PROJ%" -c Release -r win-x64 --self-contained false -o "%BUILD_DIR%" --nologo -v q
 if !errorlevel! neq 0 (
     echo.
     echo   [XX] Сборка не удалась — повтори dotnet publish вручную.
@@ -242,10 +344,28 @@ if !errorlevel! neq 0 (
 )
 echo   [OK] Собрано в %BUILD_DIR%
 
+:: ── [2/4] Копирование модели Whisper ────────────────────────────
+echo.
+echo   [2/4] Копирую модель Whisper в релизную папку...
+copy /y "%MODEL%" "%BUILD_DIR%\ggml-large-v3-turbo.bin" >nul
+if !errorlevel! neq 0 (
+    echo   [XX] Не удалось скопировать модель.
+    pause
+    exit /b 1
+)
+for %%A in ("%MODEL%") do set /a "MODEL_MB=%%~zA / 1048576"
+echo   [OK] Модель скопирована (~!MODEL_MB! MB)
+
+:: Если есть whisper-cli.exe в build/, тоже копируем
+if exist "%ROOT%build\whisper-cli.exe" (
+    copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
+    echo   [OK] whisper-cli.exe скопирован
+)
+
 :: ── [3/4] Создание ZIP ──────────────────────────────────────────
 echo.
 echo   [3/4] Создание архива...
-set "ZIP_NAME=LERON-!VER!-win-x64.zip"
+set "ZIP_NAME=LERON-AUDIO-!VER!-win-x64.zip"
 set "ZIP_PATH=%ROOT%release\!ZIP_NAME!"
 if not exist "%ROOT%release" mkdir "%ROOT%release"
 if exist "!ZIP_PATH!" del "!ZIP_PATH!"
@@ -280,44 +400,52 @@ echo.
 echo   Путь к архиву скопирован в буфер обмена —
 echo   в поле выбора файла нажми Ctrl+V и Enter.
 echo.
-
 :: Копируем путь в буфер
 echo|set /p="!ZIP_PATH!" | clip
-
-start "" "https://github.com/TheLER0N/New-Era/releases/new?tag=!VER!&title=!TITLE!"
-
+start "" "https://github.com/TheLER0N/TRANSCRIPTOIN-LERON/releases/new?tag=!VER!&title=!TITLE!"
 pause
 
 ------------------------------------------------
 FILE: start.bat
-SIZE: 714 bytes
+SIZE: 920 bytes
 ------------------------------------------------
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 set "ROOT=%~dp0"
-set "EXE=%ROOT%GUI result\LeronCli.exe"
+set "PROJ=%ROOT%code\Leron.Audio.csproj"
 
 echo.
 echo ================================================================
-echo LERON CLI
+echo LERON-AUDIO · LOCAL RUN
 echo ================================================================
 echo.
-echo Kill old gateway on port 51234 if stuck...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":51234" ^| findstr "LISTENING"') do taskkill /PID %%P /F >nul 2>&1
-timeout /t 1 >nul
 
-echo Build...
-dotnet build "%ROOT%program\main\MainApp.csproj" -v q --nologo
-if not exist "%EXE%" (
-echo [XX] Build failed. Show output.
-pause
-exit /b 1
+where dotnet >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [XX] dotnet не найден. Установи .NET 8 SDK.
+    pause
+    exit /b 1
 )
 
-echo Starting LERON CLI...
-start "LERON CLI" /d "%ROOT%program\main" "%EXE%"
-timeout /t 5
+if not exist "%PROJ%" (
+    echo [XX] Проект не найден: %PROJ%
+    pause
+    exit /b 1
+)
+
+echo [i] Восстановление пакетов и сборка...
+dotnet build "%PROJ%" -c Debug --nologo -v q
+if !errorlevel! neq 0 (
+    echo [XX] Сборка не удалась. Смотри ошибки выше.
+    pause
+    exit /b 1
+)
+
+echo [i] Запуск LERON-AUDIO...
+dotnet run --project "%PROJ%" --no-build
+
+endlocal
 
 ------------------------------------------------
 FILE: code\App.xaml
