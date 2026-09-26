@@ -1,0 +1,34 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+code/bin/
+code/obj/
+
+# Large AI models and binaries
+*.bin
+whisper-cli.exe
+
+# Temp, releases and reports
+*.tmp
+temp/
+release/
+release-build/
+LERON-AUDIO_report_files.tmp
+
+# User-specific files
+*.user
+settings.json
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / VS
+.vs/
+.idea/
