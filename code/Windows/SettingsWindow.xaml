@@ -1,0 +1,129 @@
+<Window x:Class="Leron.Audio.Windows.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройки"
+        Width="460" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#181A24">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#A0A5B9"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="DarkBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#262836"/>
+            <Setter Property="Foreground" Value="#E8E8E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#6C5CE7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl Background="Transparent" BorderThickness="0">
+            <TabItem Header="Горячие клавиши">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Хоткей записи (PTT): кликни в поле и нажми сочетание клавиш"/>
+                    <TextBox x:Name="HotkeyBox"
+                             Style="{StaticResource DarkBox}"
+                             Text="{Binding HotkeyText, Mode=OneWay}"
+                             IsReadOnly="True"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Микрофон">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Устройство записи: если VU-метр не двигается при голосе — выбери другой микрофон"/>
+                    <ComboBox ItemsSource="{Binding MicrophoneNames}"
+                              SelectedIndex="{Binding SelectedMicrophoneIndex}"
+                              Background="#262836"
+                              Foreground="#E8E8E8"
+                              BorderThickness="0"
+                              Padding="10,8"
+                              FontSize="13">
+                        <ComboBox.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#262836"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#6C5CE7"/>
+                        </ComboBox.Resources>
+                    </ComboBox>
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Margin="0,10,0,0"
+                               Text="Применяется сразу после «Сохранить», перезапуск не нужен."/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Вставка">
+                <StackPanel Margin="12">
+                    <CheckBox Content="Автоматически вставлять текст в активное окно (Ctrl+V)"
+                              IsChecked="{Binding AutoPaste}"
+                              Foreground="#E8E8E8"
+                              Margin="0,4,0,8"/>
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Если выключено — текст только копируется в буфер обмена."/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Модель">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Путь к ggml-*.bin (пусто = автопоиск в корне проекта)"/>
+                    <TextBox Style="{StaticResource DarkBox}"
+                             Text="{Binding ModelPath, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="Проверить"
+                            Command="{Binding CheckModelCommand}"
+                            Style="{StaticResource ActionButton}"
+                            HorizontalAlignment="Left"
+                            Margin="0,10,0,8"/>
+                    <TextBlock Text="{Binding ModelStatusText}" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#2ECC71"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ModelStatusIsError}" Value="True">
+                                        <Setter Property="Foreground" Value="#E74C3C"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Запуск">
+                <StackPanel Margin="12">
+                    <CheckBox Content="Запускать свёрнутым"
+                              IsChecked="{Binding StartMinimized}"
+                              Foreground="#E8E8E8"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="1"
+                   Text="{Binding StatusMessage}"
+                   Foreground="#A0A5B9"
+                   TextWrapping="Wrap"
+                   Margin="0,8,0,8"/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Сохранить"
+                    Command="{Binding SaveCommand}"
+                    Style="{StaticResource ActionButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

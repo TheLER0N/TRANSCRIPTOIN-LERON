@@ -8,13 +8,20 @@ namespace Leron.Audio.Services;
 
 public sealed class WhisperCliService : IWhisperService
 {
+    private readonly SettingsService _settings;
+
+    public WhisperCliService(SettingsService settings)
+    {
+        _settings = settings;
+    }
+
     public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
     {
         var cli = ModelLocator.FindWhisperCli()
             ?? throw new FileNotFoundException(
                 "whisper-cli.exe не найден. Запусти download-whisper-cli.bat в корне проекта.");
 
-        var model = ModelLocator.FindModel()
+        var model = ResolveModel()
             ?? throw new FileNotFoundException(
                 "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
 
@@ -23,6 +30,7 @@ public sealed class WhisperCliService : IWhisperService
         var psi = new ProcessStartInfo
         {
             FileName = cli,
+            WorkingDirectory = Path.GetDirectoryName(cli) ?? AppContext.BaseDirectory,
             Arguments = $"-m \"{model}\" -f \"{wavPath}\" -otxt -of \"{outBase}\" -l auto -np -nt",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -57,5 +65,13 @@ public sealed class WhisperCliService : IWhisperService
         try { File.Delete(txtPath); } catch { }
 
         return text.Trim();
+    }
+
+    private string? ResolveModel()
+    {
+        var configured = _settings.Current.ModelPath;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+            return configured;
+        return ModelLocator.FindModel();
     }
 }

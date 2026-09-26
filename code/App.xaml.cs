@@ -1,10 +1,7 @@
 using System;
-using System.Threading;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using Leron.Audio.Controls;
 using Leron.Audio.Services;
+using Leron.Audio.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Leron.Audio;
@@ -13,92 +10,35 @@ public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
 
+    public static IServiceProvider Services { get; private set; } = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
         var services = new ServiceCollection();
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
+        Services = _serviceProvider;
 
-        var capture = _serviceProvider.GetRequiredService<IAudioCaptureService>();
-        var whisper = _serviceProvider.GetRequiredService<IWhisperService>();
-
-        var meter = new LevelMeter { Height = 28, Margin = new Thickness(0, 0, 0, 16) };
-        meter.Attach(capture);
-
-        var status = new TextBlock
-        {
-            Text = "Готов. Зажми кнопку для тестовой записи.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(160, 165, 185))
-        };
-
-        var button = new Button
-        {
-            Content = "Держи для записи (тест)",
-            Height = 90,
-            FontSize = 16,
-            Margin = new Thickness(0, 0, 0, 16)
-        };
-
-        async void StopRecording()
-        {
-            if (!capture.IsRecording) return;
-            var path = capture.Stop();
-            button.IsEnabled = false;
-            status.Text = "Распознаю...";
-            try
-            {
-                var text = await whisper.TranscribeAsync(path, CancellationToken.None);
-                status.Text = string.IsNullOrWhiteSpace(text)
-                    ? "Тишина: текст не распознан."
-                    : $"Текст: {text}";
-            }
-            catch (Exception ex)
-            {
-                status.Text = $"Ошибка распознавания: {ex.Message}";
-            }
-            finally
-            {
-                button.IsEnabled = true;
-            }
-        }
-
-        button.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            capture.Start();
-            status.Text = "Запись...";
-        };
-        button.PreviewMouseLeftButtonUp += (_, _) => StopRecording();
-        button.MouseLeave += (_, _) => StopRecording();
-
-        var panel = new StackPanel { Margin = new Thickness(24) };
-        panel.Children.Add(meter);
-        panel.Children.Add(button);
-        panel.Children.Add(status);
-
-        var window = new Window
-        {
-            Title = "LERON-AUDIO",
-            Width = 480,
-            Height = 640,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = new SolidColorBrush(Color.FromRgb(24, 26, 36)),
-            Content = panel
-        };
-
-        window.Closed += (_, _) => meter.Detach();
+        var window = _serviceProvider.GetRequiredService<MainWindow>();
+        var settings = _serviceProvider.GetRequiredService<SettingsService>();
+        if (settings.Current.StartMinimized)
+            window.WindowState = WindowState.Minimized;
         window.Show();
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        services.AddSingleton<SettingsService>();
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
         services.AddSingleton<IWhisperService, WhisperCliService>();
-        // Следующие шаги: IHotkeyService, IClipboardService, SettingsService, MainViewModel.
+        services.AddSingleton<IHotkeyService, NHotkeyService>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<MainViewModel>();
+        services.AddTransient<SettingsViewModel>();
+        services.AddSingleton<MainWindow>();
     }
 
     private void OnDispatcherUnhandledException(
@@ -110,12 +50,13 @@ public partial class App : Application
             "LERON-AUDIO",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
-
         e.Handled = true;
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if (_serviceProvider?.GetService<IHotkeyService>() is IDisposable disposable)
+            disposable.Dispose();
         _serviceProvider?.Dispose();
         base.OnExit(e);
     }

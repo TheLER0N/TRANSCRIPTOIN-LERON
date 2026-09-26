@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 18:33:47
+  GENERATED      : 26.09.2026 19:04:33
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -9,6 +9,12 @@
 C:\Users\Пользователь\Desktop\LERON-AUDIO
 +---.gitignore
 +---build
+|   +---bench.exe
+|   +---command.exe
+|   +---ggml.dll
+|   +---ggml-base.dll
+|   +---ggml-cpu.dll
+|   +---main.exe
 |   +---Release
 |   |   +---bench.exe
 |   |   +---command.exe
@@ -31,7 +37,21 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   |   +---whisper-stream.exe
 |   |   +---whisper-talk-llama.exe
 |   |   \---whisper-vad-speech-segments.exe
-|   \---whisper-cli.exe
+|   +---SDL2.dll
+|   +---stream.exe
+|   +---test-vad.exe
+|   +---test-vad-full.exe
+|   +---wchess.exe
+|   +---whisper.dll
+|   +---whisper-bench.exe
+|   +---whisper-cli.exe
+|   +---whisper-command.exe
+|   +---whisper-lsp.exe
+|   +---whisper-quantize.exe
+|   +---whisper-server.exe
+|   +---whisper-stream.exe
+|   +---whisper-talk-llama.exe
+|   \---whisper-vad-speech-segments.exe
 +---code
 |   +---App.xaml
 |   +---App.xaml.cs
@@ -39,18 +59,27 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   +---build
 |   +---Leron.Audio.csproj
 |   +---LERON-Audio.sln
+|   +---MainWindow.xaml
+|   +---MainWindow.xaml.cs
 |   +---Services
+|   |   +---ClipboardService.cs
 |   |   +---IAudioCaptureService.cs
+|   |   +---IClipboardService.cs
 |   |   +---IHotkeyService.cs
 |   |   +---IWhisperService.cs
 |   |   +---LevelMeter.cs
 |   |   +---ModelLocator.cs
 |   |   +---NAudioCaptureService.cs
 |   |   +---NHotkeyService.cs
+|   |   +---SettingsService.cs
 |   |   +---TempWavWriter.cs
 |   |   \---WhisperCliService.cs
-|   \---ViewModels
-|       \---MainViewModel.cs
+|   +---ViewModels
+|   |   +---MainViewModel.cs
+|   |   \---SettingsViewModel.cs
+|   \---Windows
+|       +---SettingsWindow.xaml
+|       \---SettingsWindow.xaml.cs
 +---download-model.bat
 +---download-whisper-cli.bat
 +---ggml-large-v3-turbo.bin
@@ -165,7 +194,7 @@ pause
 
 ------------------------------------------------
 FILE: download-whisper-cli.bat
-SIZE: 2243 bytes
+SIZE: 2723 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -184,7 +213,7 @@ echo   Бинарник: whisper-cli.exe (Windows x64)
 echo   Папка   : %DEST%
 echo.
 
-if exist "%DEST%\whisper-cli.exe" (
+if exist "%DEST%\whisper-cli.exe" if exist "%DEST%\whisper.dll" (
     echo   [i] whisper-cli.exe уже есть в build\. Скачивание не требуется.
     pause
     exit /b 0
@@ -192,47 +221,52 @@ if exist "%DEST%\whisper-cli.exe" (
 
 if not exist "%DEST%" mkdir "%DEST%"
 
-set "OK="
-for %%U in (
-    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-bin-x64.zip
-    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-blas-bin-x64.zip
-    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.4/whisper-bin-x64.zip
-) do if not defined OK (
-    echo   [i] Пробую: %%U
-    curl.exe -fL --progress-bar -o "%ZIP%" "%%U"
-    if not errorlevel 1 set "OK=1"
-)
-
-if not defined OK (
-    echo.
-    echo   [XX] Не удалось скачать ни с одного зеркала. Скачай вручную:
-    echo       https://github.com/ggml-org/whisper.cpp/releases
-    echo       и распакуй whisper-cli.exe в папку: %DEST%
-    pause
-    exit /b 1
-)
-
-echo   [i] Распаковываю в %DEST% ...
-tar.exe -xf "%ZIP%" -C "%DEST%"
-if !errorlevel! neq 0 (
-    echo   [XX] Распаковка не удалась.
-    pause
-    exit /b 1
-)
-del "%ZIP%" >nul 2>&1
-
-:: Fallback: если exe лёг в подпапку архива — поднимаем его в build\
 if not exist "%DEST%\whisper-cli.exe" (
-    for /r "%DEST%" %%F in (whisper-cli.exe) do copy /y "%%F" "%DEST%\whisper-cli.exe" >nul 2>&1
+    set "OK="
+    for %%U in (
+        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-bin-x64.zip
+        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-blas-bin-x64.zip
+        https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.4/whisper-bin-x64.zip
+    ) do if not defined OK (
+        echo   [i] Пробую: %%U
+        curl.exe -fL --progress-bar -o "%ZIP%" "%%U"
+        if not errorlevel 1 set "OK=1"
+    )
+    if not defined OK (
+        echo.
+        echo   [XX] Не удалось скачать ни с одного зеркала. Скачай вручную:
+        echo       https://github.com/ggml-org/whisper.cpp/releases
+        echo       и распакуй whisper-cli.exe в папку: %DEST%
+        pause
+        exit /b 1
+    )
+    echo   [i] Распаковываю в %DEST% ...
+    tar.exe -xf "%ZIP%" -C "%DEST%"
+    if !errorlevel! neq 0 (
+        echo   [XX] Распаковка не удалась.
+        pause
+        exit /b 1
+    )
+    del "%ZIP%" >nul 2>&1
 )
 
-if exist "%DEST%\whisper-cli.exe" (
+:: Если exe лёг в подпапку архива — переносим ВСЁ её содержимое в build\
+if not exist "%DEST%\whisper-cli.exe" (
+    for /r "%DEST%" %%F in (whisper-cli.exe) do xcopy /y /i /q "%%~dpF." "%DEST%" >nul 2>&1
+)
+
+:: DLL обязаны лежать рядом с exe, иначе whisper-cli не запустится
+if exist "%DEST%\whisper-cli.exe" if not exist "%DEST%\whisper.dll" (
+    for /r "%DEST%" %%F in (whisper.dll) do xcopy /y /i /q "%%~dpF." "%DEST%" >nul 2>&1
+)
+
+if exist "%DEST%\whisper-cli.exe" if exist "%DEST%\whisper.dll" (
     echo.
     echo   [OK] whisper-cli.exe готов к работе.
 ) else (
     echo.
-    echo   [XX] whisper-cli.exe не найден в build\ после распаковки.
-    echo       Посмотри содержимое архива и положи exe в: %DEST%
+    echo   [XX] whisper-cli.exe или whisper.dll не найдены в %DEST%.
+    echo       Посмотри содержимое архива и положи exe и dll в: %DEST%
 )
 
 echo.
@@ -352,7 +386,7 @@ pause
 
 ------------------------------------------------
 FILE: release-to-github.bat
-SIZE: 5802 bytes
+SIZE: 5969 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -361,7 +395,6 @@ set "ROOT=%~dp0"
 set "PROJ=%ROOT%code\Leron.Audio.csproj"
 set "BUILD_DIR=%ROOT%release-build"
 set "MODEL=%ROOT%ggml-large-v3-turbo.bin"
-
 echo.
 echo ================================================================
 echo   LERON-AUDIO · RELEASE TO GITHUB
@@ -369,7 +402,6 @@ echo ================================================================
 echo.
 echo   Репозиторий: https://github.com/TheLER0N/TRANSCRIPTOIN-LERON
 echo.
-
 :: ── Проверка окружения ──────────────────────────────────────────
 where dotnet >nul 2>&1
 if !errorlevel! neq 0 (
@@ -377,20 +409,17 @@ if !errorlevel! neq 0 (
     pause
     exit /b 1
 )
-
 if not exist "%PROJ%" (
     echo   [XX] Leron.Audio.csproj не найден: %PROJ%
     pause
     exit /b 1
 )
-
 if not exist "%MODEL%" (
     echo   [XX] Модель Whisper не найдена: %MODEL%
     echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
     pause
     exit /b 1
 )
-
 :: ── Ввод данных релиза ──────────────────────────────────────────
 set /p "VER=   Версия (например 1.0.0): "
 if "!VER!"=="" (
@@ -398,13 +427,10 @@ if "!VER!"=="" (
     pause
     exit /b 1
 )
-
 set /p "TITLE=   Название (Enter = LERON-AUDIO v!VER!): "
 if "!TITLE!"=="" set "TITLE=LERON-AUDIO v!VER!"
-
 set /p "DESC=    Описание (Enter = дефолт): "
 if "!DESC!"=="" set "DESC=LERON-AUDIO v!VER! — локальная PTT-диктовка через Whisper.cpp."
-
 echo.
 echo ================================================================
 echo   Версия   : !VER!
@@ -413,18 +439,15 @@ echo   Проект   : %PROJ%
 echo   Сборка   : %BUILD_DIR%
 echo ================================================================
 echo.
-
 set /p "CONFIRM=   Продолжить? [Y/n]: "
 if /i "!CONFIRM!"=="n" (
     echo   Отменено.
     pause
     exit /b 0
 )
-
 :: ── [1/4] Сборка Release ────────────────────────────────────────
 echo.
 echo   [1/4] dotnet publish (Release)...
-
 if exist "%BUILD_DIR%" (
     :: Не удаляем всю папку — бережём settings.json, если пользователь там что-то положил
     for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.bin") do (
@@ -432,7 +455,6 @@ if exist "%BUILD_DIR%" (
     )
     if exist "%BUILD_DIR%\runtimes" rd /s /q "%BUILD_DIR%\runtimes" 2>nul
 )
-
 dotnet publish "%PROJ%" -c Release -r win-x64 --self-contained false -o "%BUILD_DIR%" --nologo -v q
 if !errorlevel! neq 0 (
     echo.
@@ -441,7 +463,6 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 echo   [OK] Собрано в %BUILD_DIR%
-
 :: ── [2/4] Копирование модели Whisper ────────────────────────────
 echo.
 echo   [2/4] Копирую модель Whisper в релизную папку...
@@ -453,13 +474,14 @@ if !errorlevel! neq 0 (
 )
 for %%A in ("%MODEL%") do set /a "MODEL_MB=%%~zA / 1048576"
 echo   [OK] Модель скопирована (~!MODEL_MB! MB)
-
-:: Если есть whisper-cli.exe в build/, тоже копируем
+:: whisper-cli.exe копируем вместе с DLL, иначе релиз не запустится
 if exist "%ROOT%build\whisper-cli.exe" (
     copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
-    echo   [OK] whisper-cli.exe скопирован
+    for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
+        if exist "%ROOT%build\%%D" copy /y "%ROOT%build\%%D" "%BUILD_DIR%\%%D" >nul
+    )
+    echo   [OK] whisper-cli.exe и DLL скопированы
 )
-
 :: ── [3/4] Создание ZIP ──────────────────────────────────────────
 echo.
 echo   [3/4] Создание архива...
@@ -467,17 +489,14 @@ set "ZIP_NAME=LERON-AUDIO-!VER!-win-x64.zip"
 set "ZIP_PATH=%ROOT%release\!ZIP_NAME!"
 if not exist "%ROOT%release" mkdir "%ROOT%release"
 if exist "!ZIP_PATH!" del "!ZIP_PATH!"
-
 powershell -NoProfile -Command "Compress-Archive -Path '%BUILD_DIR%\*' -DestinationPath '!ZIP_PATH!' -Force"
 if !errorlevel! neq 0 (
     echo   [XX] Не удалось создать архив.
     pause
     exit /b 1
 )
-
 for %%A in ("!ZIP_PATH!") do set /a "ZIP_MB=%%~zA / 1048576"
 echo   [OK] Архив: !ZIP_PATH! (~!ZIP_MB! MB)
-
 :: ── [4/4] Открытие страницы релиза ──────────────────────────────
 echo.
 echo   [4/4] Открываю GitHub Releases...
@@ -556,15 +575,12 @@ SIZE: 204 bytes
 
 ------------------------------------------------
 FILE: code\App.xaml.cs
-SIZE: 4025 bytes
+SIZE: 2216 bytes
 ------------------------------------------------
 using System;
-using System.Threading;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using Leron.Audio.Controls;
 using Leron.Audio.Services;
+using Leron.Audio.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Leron.Audio;
@@ -573,92 +589,35 @@ public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
 
+    public static IServiceProvider Services { get; private set; } = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
         var services = new ServiceCollection();
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
+        Services = _serviceProvider;
 
-        var capture = _serviceProvider.GetRequiredService<IAudioCaptureService>();
-        var whisper = _serviceProvider.GetRequiredService<IWhisperService>();
-
-        var meter = new LevelMeter { Height = 28, Margin = new Thickness(0, 0, 0, 16) };
-        meter.Attach(capture);
-
-        var status = new TextBlock
-        {
-            Text = "Готов. Зажми кнопку для тестовой записи.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(160, 165, 185))
-        };
-
-        var button = new Button
-        {
-            Content = "Держи для записи (тест)",
-            Height = 90,
-            FontSize = 16,
-            Margin = new Thickness(0, 0, 0, 16)
-        };
-
-        async void StopRecording()
-        {
-            if (!capture.IsRecording) return;
-            var path = capture.Stop();
-            button.IsEnabled = false;
-            status.Text = "Распознаю...";
-            try
-            {
-                var text = await whisper.TranscribeAsync(path, CancellationToken.None);
-                status.Text = string.IsNullOrWhiteSpace(text)
-                    ? "Тишина: текст не распознан."
-                    : $"Текст: {text}";
-            }
-            catch (Exception ex)
-            {
-                status.Text = $"Ошибка распознавания: {ex.Message}";
-            }
-            finally
-            {
-                button.IsEnabled = true;
-            }
-        }
-
-        button.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            capture.Start();
-            status.Text = "Запись...";
-        };
-        button.PreviewMouseLeftButtonUp += (_, _) => StopRecording();
-        button.MouseLeave += (_, _) => StopRecording();
-
-        var panel = new StackPanel { Margin = new Thickness(24) };
-        panel.Children.Add(meter);
-        panel.Children.Add(button);
-        panel.Children.Add(status);
-
-        var window = new Window
-        {
-            Title = "LERON-AUDIO",
-            Width = 480,
-            Height = 640,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = new SolidColorBrush(Color.FromRgb(24, 26, 36)),
-            Content = panel
-        };
-
-        window.Closed += (_, _) => meter.Detach();
+        var window = _serviceProvider.GetRequiredService<MainWindow>();
+        var settings = _serviceProvider.GetRequiredService<SettingsService>();
+        if (settings.Current.StartMinimized)
+            window.WindowState = WindowState.Minimized;
         window.Show();
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        services.AddSingleton<SettingsService>();
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
         services.AddSingleton<IWhisperService, WhisperCliService>();
-        // Следующие шаги: IHotkeyService, IClipboardService, SettingsService, MainViewModel.
+        services.AddSingleton<IHotkeyService, NHotkeyService>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<MainViewModel>();
+        services.AddTransient<SettingsViewModel>();
+        services.AddSingleton<MainWindow>();
     }
 
     private void OnDispatcherUnhandledException(
@@ -670,12 +629,13 @@ public partial class App : Application
             "LERON-AUDIO",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
-
         e.Handled = true;
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if (_serviceProvider?.GetService<IHotkeyService>() is IDisposable disposable)
+            disposable.Dispose();
         _serviceProvider?.Dispose();
         base.OnExit(e);
     }
@@ -758,8 +718,214 @@ SIZE: 986 bytes
 </Project>
 
 ------------------------------------------------
+FILE: code\MainWindow.xaml
+SIZE: 6019 bytes
+------------------------------------------------
+<Window x:Class="Leron.Audio.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Leron.Audio.Controls"
+        Title="LERON-AUDIO"
+        Width="520" Height="720"
+        WindowStartupLocation="CenterScreen"
+        Background="#181A24">
+    <Window.Resources>
+        <Style x:Key="FlatButton" TargetType="Button">
+            <Setter Property="Background" Value="#262836"/>
+            <Setter Property="Foreground" Value="#E8E8E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#32354A"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#3D4160"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <controls:LevelMeter x:Name="LevelMeter" Height="28" Margin="0,0,0,16"/>
+
+        <Button Grid.Row="1"
+                Height="120"
+                FontSize="17"
+                FontWeight="SemiBold"
+                Content="{Binding RecordButtonText}"
+                Command="{Binding ToggleRecordingCommand}"
+                Margin="0,0,0,16">
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Setter Property="Background" Value="#6C5CE7"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="bd"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="14"
+                                        Padding="16">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="#E74C3C"/>
+                                    </DataTrigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Opacity" Value="0.9"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Button.Style>
+        </Button>
+
+        <Border Grid.Row="2"
+                Background="#262836"
+                CornerRadius="10"
+                Padding="16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding Transcript, Mode=OneWay}"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         Background="Transparent"
+                         Foreground="#E8E8E8"
+                         BorderThickness="0"
+                         FontSize="14"
+                         AcceptsReturn="True"/>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="3"
+                   Text="{Binding StatusText}"
+                   Foreground="#A0A5B9"
+                   TextWrapping="Wrap"
+                   Margin="0,16,0,0"
+                   FontSize="13"/>
+
+        <Grid Grid.Row="4" Margin="0,16,0,0">
+            <Button Content="Настройки"
+                    Click="OnSettingsClick"
+                    Style="{StaticResource FlatButton}"
+                    HorizontalAlignment="Left"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Копировать"
+                        Command="{Binding CopyCommand}"
+                        Style="{StaticResource FlatButton}"
+                        Margin="0,0,8,0"/>
+                <Button Content="Очистить"
+                        Command="{Binding ClearCommand}"
+                        Style="{StaticResource FlatButton}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
+
+------------------------------------------------
+FILE: code\MainWindow.xaml.cs
+SIZE: 744 bytes
+------------------------------------------------
+using System.Windows;
+using Leron.Audio.Services;
+using Leron.Audio.ViewModels;
+using Leron.Audio.Windows;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Leron.Audio;
+
+public partial class MainWindow : Window
+{
+    public MainWindow(MainViewModel viewModel, IAudioCaptureService capture)
+    {
+        InitializeComponent();
+        DataContext = viewModel;
+        LevelMeter.Attach(capture);
+        Closed += (_, _) => LevelMeter.Detach();
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        var vm = App.Services.GetRequiredService<SettingsViewModel>();
+        vm.Reload();
+        var win = new SettingsWindow(vm) { Owner = this };
+        win.ShowDialog();
+    }
+}
+
+------------------------------------------------
+FILE: code\Services\ClipboardService.cs
+SIZE: 1020 bytes
+------------------------------------------------
+using System.Threading.Tasks;
+using System.Windows;
+using WindowsInput;
+using WindowsInput.Native;
+
+namespace Leron.Audio.Services;
+
+public sealed class ClipboardService : IClipboardService
+{
+    private readonly SettingsService _settings;
+
+    public ClipboardService(SettingsService settings)
+    {
+        _settings = settings;
+    }
+
+    public Task SetTextAsync(string text)
+    {
+        Application.Current?.Dispatcher.Invoke(() => Clipboard.SetText(text ?? string.Empty));
+        return Task.CompletedTask;
+    }
+
+    public async Task PasteIntoActiveWindowAsync()
+    {
+        if (!_settings.Current.AutoPaste) return;
+
+        await Task.Delay(150);
+        try
+        {
+            var sim = new InputSimulator();
+            sim.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_V);
+        }
+        catch
+        {
+            // Fallback: текст уже в буфере, пользователь вставит вручную
+        }
+    }
+}
+
+------------------------------------------------
 FILE: code\Services\IAudioCaptureService.cs
-SIZE: 241 bytes
+SIZE: 273 bytes
 ------------------------------------------------
 using System;
 
@@ -770,8 +936,23 @@ public interface IAudioCaptureService
     event Action<float[]>? SamplesAvailable;
     float PeakLevel { get; }
     bool IsRecording { get; }
+    int LastDataBytes { get; }
     void Start();
     string Stop();
+}
+
+------------------------------------------------
+FILE: code\Services\IClipboardService.cs
+SIZE: 185 bytes
+------------------------------------------------
+using System.Threading.Tasks;
+
+namespace Leron.Audio.Services;
+
+public interface IClipboardService
+{
+    Task SetTextAsync(string text);
+    Task PasteIntoActiveWindowAsync();
 }
 
 ------------------------------------------------
@@ -884,7 +1065,7 @@ public sealed class LevelMeter : FrameworkElement
 
 ------------------------------------------------
 FILE: code\Services\ModelLocator.cs
-SIZE: 1306 bytes
+SIZE: 1691 bytes
 ------------------------------------------------
 using System;
 using System.Collections.Generic;
@@ -898,13 +1079,21 @@ public static class ModelLocator
     {
         foreach (var root in EnumerateRoots())
         {
-            var direct = Path.Combine(root, "whisper-cli.exe");
-            if (File.Exists(direct)) return direct;
-
-            var inBuild = Path.Combine(root, "build", "whisper-cli.exe");
-            if (File.Exists(inBuild)) return inBuild;
+            foreach (var candidate in CliCandidates(root))
+            {
+                if (File.Exists(candidate)) return candidate;
+            }
         }
         return null;
+    }
+
+    private static IEnumerable<string> CliCandidates(string root)
+    {
+        // Приоритет — папки, где рядом с exe лежат DLL (build\Release),
+        // иначе одинокий whisper-cli.exe не запустится.
+        yield return Path.Combine(root, "build", "Release", "whisper-cli.exe");
+        yield return Path.Combine(root, "build", "whisper-cli.exe");
+        yield return Path.Combine(root, "whisper-cli.exe");
     }
 
     public static string? FindModel()
@@ -936,9 +1125,10 @@ public static class ModelLocator
 
 ------------------------------------------------
 FILE: code\Services\NAudioCaptureService.cs
-SIZE: 2428 bytes
+SIZE: 3354 bytes
 ------------------------------------------------
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NAudio.Wave;
 
@@ -949,9 +1139,16 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
     public const int SampleRate = 16000;
 
     private readonly object _lock = new();
+    private readonly SettingsService _settings;
     private WaveInEvent? _waveIn;
     private TempWavWriter? _writer;
     private float _peak;
+    private int _lastDataBytes;
+
+    public NAudioCaptureService(SettingsService settings)
+    {
+        _settings = settings;
+    }
 
     public event Action<float[]>? SamplesAvailable;
 
@@ -965,6 +1162,21 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
         get { lock (_lock) return _waveIn is not null; }
     }
 
+    public int LastDataBytes
+    {
+        get { lock (_lock) return _lastDataBytes; }
+    }
+
+    public static IReadOnlyList<string> EnumerateMicrophones()
+    {
+        var names = new List<string>();
+        for (int i = 0; i < WaveInEvent.DeviceCount; i++)
+        {
+            names.Add(WaveInEvent.GetCapabilities(i).ProductName);
+        }
+        return names;
+    }
+
     public void Start()
     {
         lock (_lock)
@@ -972,11 +1184,16 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
             if (_waveIn is not null) return;
 
             _peak = 0f;
+            _lastDataBytes = 0;
             var path = Path.Combine(AppContext.BaseDirectory, "temp", "recording.wav");
             _writer = new TempWavWriter(path, SampleRate, 16, 1);
 
+            int device = _settings.Current.MicrophoneId;
+            if (device >= WaveInEvent.DeviceCount) device = -1;
+
             _waveIn = new WaveInEvent
             {
+                DeviceNumber = device, // -1 = WAVE_MAPPER (системный по умолчанию)
                 WaveFormat = new WaveFormat(SampleRate, 16, 1),
                 BufferMilliseconds = 50
             };
@@ -1015,6 +1232,7 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
         {
             if (_writer is null) return;
             _writer.WriteSamples(e.Buffer, 0, e.BytesRecorded);
+            _lastDataBytes += e.BytesRecorded;
 
             int count = e.BytesRecorded / 2;
             samples = new float[count];
@@ -1107,6 +1325,69 @@ public sealed class NHotkeyService : IHotkeyService, IDisposable
 }
 
 ------------------------------------------------
+FILE: code\Services\SettingsService.cs
+SIZE: 1590 bytes
+------------------------------------------------
+using System;
+using System.IO;
+using System.Text.Json;
+
+namespace Leron.Audio.Services;
+
+public sealed class Settings
+{
+    public string RecordHotkey { get; set; } = "F4";
+    public bool AutoPaste { get; set; } = true;
+    public string? ModelPath { get; set; }
+    public string Language { get; set; } = "auto";
+    public bool StartMinimized { get; set; } = false;
+    public string Theme { get; set; } = "Dark";
+    public int MicrophoneId { get; set; } = -1; // -1 = системный микрофон по умолчанию
+}
+
+public sealed class SettingsService
+{
+    private readonly string _path;
+    public Settings Current { get; private set; } = new();
+
+    public SettingsService()
+    {
+        _path = Path.Combine(AppContext.BaseDirectory, "settings.json");
+        Load();
+    }
+
+    public void Load()
+    {
+        try
+        {
+            if (File.Exists(_path))
+            {
+                var json = File.ReadAllText(_path);
+                Current = JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+            }
+        }
+        catch
+        {
+            Current = new Settings();
+        }
+    }
+
+    public void Save()
+    {
+        try
+        {
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            var json = JsonSerializer.Serialize(Current, options);
+            File.WriteAllText(_path, json);
+        }
+        catch
+        {
+            // Игнорируем ошибки записи (например, нет прав)
+        }
+    }
+}
+
+------------------------------------------------
 FILE: code\Services\TempWavWriter.cs
 SIZE: 2243 bytes
 ------------------------------------------------
@@ -1185,7 +1466,7 @@ public sealed class TempWavWriter : IDisposable
 
 ------------------------------------------------
 FILE: code\Services\WhisperCliService.cs
-SIZE: 2166 bytes
+SIZE: 2659 bytes
 ------------------------------------------------
 using System;
 using System.Diagnostics;
@@ -1197,13 +1478,20 @@ namespace Leron.Audio.Services;
 
 public sealed class WhisperCliService : IWhisperService
 {
+    private readonly SettingsService _settings;
+
+    public WhisperCliService(SettingsService settings)
+    {
+        _settings = settings;
+    }
+
     public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
     {
         var cli = ModelLocator.FindWhisperCli()
             ?? throw new FileNotFoundException(
                 "whisper-cli.exe не найден. Запусти download-whisper-cli.bat в корне проекта.");
 
-        var model = ModelLocator.FindModel()
+        var model = ResolveModel()
             ?? throw new FileNotFoundException(
                 "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
 
@@ -1212,6 +1500,7 @@ public sealed class WhisperCliService : IWhisperService
         var psi = new ProcessStartInfo
         {
             FileName = cli,
+            WorkingDirectory = Path.GetDirectoryName(cli) ?? AppContext.BaseDirectory,
             Arguments = $"-m \"{model}\" -f \"{wavPath}\" -otxt -of \"{outBase}\" -l auto -np -nt",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -1247,11 +1536,19 @@ public sealed class WhisperCliService : IWhisperService
 
         return text.Trim();
     }
+
+    private string? ResolveModel()
+    {
+        var configured = _settings.Current.ModelPath;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
+            return configured;
+        return ModelLocator.FindModel();
+    }
 }
 
 ------------------------------------------------
 FILE: code\ViewModels\MainViewModel.cs
-SIZE: 2468 bytes
+SIZE: 4361 bytes
 ------------------------------------------------
 using System;
 using System.Threading;
@@ -1267,6 +1564,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IAudioCaptureService _capture;
     private readonly IWhisperService _whisper;
     private readonly IHotkeyService _hotkey;
+    private readonly IClipboardService _clipboard;
+    private readonly SettingsService _settings;
 
     [ObservableProperty]
     private bool _isRecording;
@@ -1275,29 +1574,51 @@ public sealed partial class MainViewModel : ObservableObject
     private string _transcript = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = "Готов. Нажми F4 для записи.";
+    private string _statusText = "Готов.";
+
+    public string RecordButtonText => IsRecording
+        ? "● Идёт запись... Отпусти для распознавания"
+        : "Нажми и держи F4 (или эту кнопку)";
 
     public MainViewModel(
         IAudioCaptureService capture,
         IWhisperService whisper,
-        IHotkeyService hotkey)
+        IHotkeyService hotkey,
+        IClipboardService clipboard,
+        SettingsService settings)
     {
         _capture = capture;
         _whisper = whisper;
         _hotkey = hotkey;
+        _clipboard = clipboard;
+        _settings = settings;
 
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
 
         try
         {
-            _hotkey.Register("F4");
-            StatusText = "Готов. Нажми F4 для записи.";
+            _hotkey.Register(_settings.Current.RecordHotkey);
+            StatusText = $"Готов. Хоткей: {_settings.Current.RecordHotkey}";
         }
         catch (Exception ex)
         {
             StatusText = $"Ошибка регистрации хоткея: {ex.Message}";
         }
+    }
+
+    partial void OnIsRecordingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(RecordButtonText));
+    }
+
+    [RelayCommand]
+    private void ToggleRecording()
+    {
+        if (IsRecording)
+            _ = StopRecording();
+        else
+            StartRecording();
     }
 
     [RelayCommand]
@@ -1306,7 +1627,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (IsRecording) return;
         _capture.Start();
         IsRecording = true;
-        StatusText = "Запись... Отпусти F4 для распознавания.";
+        StatusText = "Запись...";
     }
 
     [RelayCommand]
@@ -1315,29 +1636,343 @@ public sealed partial class MainViewModel : ObservableObject
         if (!IsRecording) return;
         var path = _capture.Stop();
         IsRecording = false;
-        StatusText = "Распознаю...";
 
+        // Защита от пустой записи: whisper-cli падает на WAV без данных
+        if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
+        {
+            Transcript = string.Empty;
+            StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Микрофон.";
+            return;
+        }
+
+        StatusText = "Распознаю...";
         try
         {
             var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
-            Transcript = string.IsNullOrWhiteSpace(text) ? "Тишина: текст не распознан." : text;
-            StatusText = "Готово. Нажми F4 для новой записи.";
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                Transcript = string.Empty;
+                StatusText = "Тишина: текст не распознан.";
+                return;
+            }
+
+            Transcript = text;
+            await _clipboard.SetTextAsync(text);
+
+            if (_settings.Current.AutoPaste)
+            {
+                StatusText = "Вставляю в активное окно...";
+                await _clipboard.PasteIntoActiveWindowAsync();
+            }
+
+            StatusText = "Готово. Текст скопирован в буфер.";
         }
         catch (Exception ex)
         {
-            Transcript = $"Ошибка: {ex.Message}";
-            StatusText = "Ошибка распознавания.";
+            Transcript = string.Empty;
+            StatusText = $"Ошибка распознавания: {ex.Message}";
         }
     }
 
-    private void OnRecordPressed()
+    [RelayCommand]
+    private async Task Copy()
     {
-        StartRecording();
+        if (string.IsNullOrWhiteSpace(Transcript)) return;
+        await _clipboard.SetTextAsync(Transcript);
+        StatusText = "Скопировано в буфер.";
     }
 
-    private void OnRecordReleased()
+    [RelayCommand]
+    private void Clear()
     {
-        _ = StopRecording();
+        Transcript = string.Empty;
+        StatusText = "Очищено.";
+    }
+
+    private void OnRecordPressed() => StartRecording();
+    private void OnRecordReleased() => _ = StopRecording();
+}
+
+------------------------------------------------
+FILE: code\ViewModels\SettingsViewModel.cs
+SIZE: 4189 bytes
+------------------------------------------------
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Leron.Audio.Services;
+
+namespace Leron.Audio.ViewModels;
+
+public sealed partial class SettingsViewModel : ObservableObject
+{
+    private readonly SettingsService _settings;
+    private readonly IHotkeyService _hotkey;
+
+    [ObservableProperty] private string _hotkeyText = "F4";
+    [ObservableProperty] private bool _autoPaste = true;
+    [ObservableProperty] private bool _startMinimized;
+    [ObservableProperty] private string _modelPath = string.Empty;
+    [ObservableProperty] private string _modelStatusText = string.Empty;
+    [ObservableProperty] private bool _modelStatusIsError;
+    [ObservableProperty] private string _statusMessage = string.Empty;
+    [ObservableProperty] private IReadOnlyList<string> _microphoneNames = Array.Empty<string>();
+    [ObservableProperty] private int _selectedMicrophoneIndex;
+
+    public SettingsViewModel(SettingsService settings, IHotkeyService hotkey)
+    {
+        _settings = settings;
+        _hotkey = hotkey;
+        Reload();
+    }
+
+    public void Reload()
+    {
+        HotkeyText = _settings.Current.RecordHotkey;
+        AutoPaste = _settings.Current.AutoPaste;
+        StartMinimized = _settings.Current.StartMinimized;
+        ModelPath = _settings.Current.ModelPath ?? string.Empty;
+
+        var names = new List<string> { "Системный микрофон по умолчанию" };
+        names.AddRange(NAudioCaptureService.EnumerateMicrophones());
+        MicrophoneNames = names;
+        SelectedMicrophoneIndex = Math.Clamp(_settings.Current.MicrophoneId + 1, 0, names.Count - 1);
+
+        ValidateModel();
+        StatusMessage = string.Empty;
+    }
+
+    partial void OnModelPathChanged(string value) => ValidateModel();
+
+    private void ValidateModel()
+    {
+        var path = string.IsNullOrWhiteSpace(ModelPath) ? ModelLocator.FindModel() : ModelPath.Trim();
+        var found = !string.IsNullOrWhiteSpace(path) && File.Exists(path);
+        ModelStatusIsError = !found;
+        ModelStatusText = found
+            ? $"Модель найдена: {path}"
+            : "Модель не найдена по указанному пути.";
+    }
+
+    [RelayCommand]
+    private void CheckModel()
+    {
+        ValidateModel();
+        StatusMessage = ModelStatusText;
+    }
+
+    [RelayCommand]
+    private void CaptureHotkey(KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.LeftCtrl:
+            case Key.RightCtrl:
+            case Key.LeftShift:
+            case Key.RightShift:
+            case Key.LeftAlt:
+            case Key.RightAlt:
+            case Key.LWin:
+            case Key.RWin:
+                return;
+        }
+
+        var parts = new List<string>();
+        var mods = Keyboard.Modifiers;
+        if (mods.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
+        if (mods.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+        if (mods.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+        if (mods.HasFlag(ModifierKeys.Windows)) parts.Add("Windows");
+        parts.Add(e.Key.ToString());
+
+        HotkeyText = string.Join("+", parts);
+        e.Handled = true;
+    }
+
+    [RelayCommand]
+    private void Save()
+    {
+        try
+        {
+            _hotkey.Register(HotkeyText);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Хоткей не применён: {ex.Message}";
+            return;
+        }
+
+        _settings.Current.RecordHotkey = HotkeyText;
+        _settings.Current.AutoPaste = AutoPaste;
+        _settings.Current.StartMinimized = StartMinimized;
+        _settings.Current.ModelPath = string.IsNullOrWhiteSpace(ModelPath) ? null : ModelPath.Trim();
+        _settings.Current.MicrophoneId = SelectedMicrophoneIndex - 1;
+        _settings.Save();
+        ValidateModel();
+        StatusMessage = "Сохранено. Хоткей и микрофон обновлены без перезапуска.";
+    }
+}
+
+------------------------------------------------
+FILE: code\Windows\SettingsWindow.xaml
+SIZE: 6743 bytes
+------------------------------------------------
+<Window x:Class="Leron.Audio.Windows.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройки"
+        Width="460" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#181A24">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#A0A5B9"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="DarkBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#262836"/>
+            <Setter Property="Foreground" Value="#E8E8E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#6C5CE7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl Background="Transparent" BorderThickness="0">
+            <TabItem Header="Горячие клавиши">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Хоткей записи (PTT): кликни в поле и нажми сочетание клавиш"/>
+                    <TextBox x:Name="HotkeyBox"
+                             Style="{StaticResource DarkBox}"
+                             Text="{Binding HotkeyText, Mode=OneWay}"
+                             IsReadOnly="True"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Микрофон">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Устройство записи: если VU-метр не двигается при голосе — выбери другой микрофон"/>
+                    <ComboBox ItemsSource="{Binding MicrophoneNames}"
+                              SelectedIndex="{Binding SelectedMicrophoneIndex}"
+                              Background="#262836"
+                              Foreground="#E8E8E8"
+                              BorderThickness="0"
+                              Padding="10,8"
+                              FontSize="13">
+                        <ComboBox.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#262836"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#6C5CE7"/>
+                        </ComboBox.Resources>
+                    </ComboBox>
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Margin="0,10,0,0"
+                               Text="Применяется сразу после «Сохранить», перезапуск не нужен."/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Вставка">
+                <StackPanel Margin="12">
+                    <CheckBox Content="Автоматически вставлять текст в активное окно (Ctrl+V)"
+                              IsChecked="{Binding AutoPaste}"
+                              Foreground="#E8E8E8"
+                              Margin="0,4,0,8"/>
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Если выключено — текст только копируется в буфер обмена."/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Модель">
+                <StackPanel Margin="12">
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Text="Путь к ggml-*.bin (пусто = автопоиск в корне проекта)"/>
+                    <TextBox Style="{StaticResource DarkBox}"
+                             Text="{Binding ModelPath, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="Проверить"
+                            Command="{Binding CheckModelCommand}"
+                            Style="{StaticResource ActionButton}"
+                            HorizontalAlignment="Left"
+                            Margin="0,10,0,8"/>
+                    <TextBlock Text="{Binding ModelStatusText}" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#2ECC71"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ModelStatusIsError}" Value="True">
+                                        <Setter Property="Foreground" Value="#E74C3C"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Запуск">
+                <StackPanel Margin="12">
+                    <CheckBox Content="Запускать свёрнутым"
+                              IsChecked="{Binding StartMinimized}"
+                              Foreground="#E8E8E8"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock Grid.Row="1"
+                   Text="{Binding StatusMessage}"
+                   Foreground="#A0A5B9"
+                   TextWrapping="Wrap"
+                   Margin="0,8,0,8"/>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Сохранить"
+                    Command="{Binding SaveCommand}"
+                    Style="{StaticResource ActionButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>
+
+------------------------------------------------
+FILE: code\Windows\SettingsWindow.xaml.cs
+SIZE: 539 bytes
+------------------------------------------------
+using System.Windows;
+using System.Windows.Input;
+using Leron.Audio.ViewModels;
+
+namespace Leron.Audio.Windows;
+
+public partial class SettingsWindow : Window
+{
+    public SettingsWindow(SettingsViewModel viewModel)
+    {
+        InitializeComponent();
+        DataContext = viewModel;
+        HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
+    }
+
+    private void OnHotkeyCapture(object sender, KeyEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm)
+            vm.CaptureHotkeyCommand.Execute(e);
     }
 }
 

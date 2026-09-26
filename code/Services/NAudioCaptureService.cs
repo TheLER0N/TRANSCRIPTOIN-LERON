@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NAudio.Wave;
 
@@ -9,9 +10,16 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
     public const int SampleRate = 16000;
 
     private readonly object _lock = new();
+    private readonly SettingsService _settings;
     private WaveInEvent? _waveIn;
     private TempWavWriter? _writer;
     private float _peak;
+    private int _lastDataBytes;
+
+    public NAudioCaptureService(SettingsService settings)
+    {
+        _settings = settings;
+    }
 
     public event Action<float[]>? SamplesAvailable;
 
@@ -25,6 +33,21 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
         get { lock (_lock) return _waveIn is not null; }
     }
 
+    public int LastDataBytes
+    {
+        get { lock (_lock) return _lastDataBytes; }
+    }
+
+    public static IReadOnlyList<string> EnumerateMicrophones()
+    {
+        var names = new List<string>();
+        for (int i = 0; i < WaveInEvent.DeviceCount; i++)
+        {
+            names.Add(WaveInEvent.GetCapabilities(i).ProductName);
+        }
+        return names;
+    }
+
     public void Start()
     {
         lock (_lock)
@@ -32,11 +55,16 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
             if (_waveIn is not null) return;
 
             _peak = 0f;
+            _lastDataBytes = 0;
             var path = Path.Combine(AppContext.BaseDirectory, "temp", "recording.wav");
             _writer = new TempWavWriter(path, SampleRate, 16, 1);
 
+            int device = _settings.Current.MicrophoneId;
+            if (device >= WaveInEvent.DeviceCount) device = -1;
+
             _waveIn = new WaveInEvent
             {
+                DeviceNumber = device, // -1 = WAVE_MAPPER (системный по умолчанию)
                 WaveFormat = new WaveFormat(SampleRate, 16, 1),
                 BufferMilliseconds = 50
             };
@@ -75,6 +103,7 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
         {
             if (_writer is null) return;
             _writer.WriteSamples(e.Buffer, 0, e.BytesRecorded);
+            _lastDataBytes += e.BytesRecorded;
 
             int count = e.BytesRecorded / 2;
             samples = new float[count];

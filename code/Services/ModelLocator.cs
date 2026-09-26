@@ -10,13 +10,21 @@ public static class ModelLocator
     {
         foreach (var root in EnumerateRoots())
         {
-            var direct = Path.Combine(root, "whisper-cli.exe");
-            if (File.Exists(direct)) return direct;
-
-            var inBuild = Path.Combine(root, "build", "whisper-cli.exe");
-            if (File.Exists(inBuild)) return inBuild;
+            foreach (var candidate in CliCandidates(root))
+            {
+                if (File.Exists(candidate)) return candidate;
+            }
         }
         return null;
+    }
+
+    private static IEnumerable<string> CliCandidates(string root)
+    {
+        // Приоритет — папки, где рядом с exe лежат DLL (build\Release),
+        // иначе одинокий whisper-cli.exe не запустится.
+        yield return Path.Combine(root, "build", "Release", "whisper-cli.exe");
+        yield return Path.Combine(root, "build", "whisper-cli.exe");
+        yield return Path.Combine(root, "whisper-cli.exe");
     }
 
     public static string? FindModel()

@@ -12,6 +12,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IAudioCaptureService _capture;
     private readonly IWhisperService _whisper;
     private readonly IHotkeyService _hotkey;
+    private readonly IClipboardService _clipboard;
+    private readonly SettingsService _settings;
 
     [ObservableProperty]
     private bool _isRecording;
@@ -20,29 +22,51 @@ public sealed partial class MainViewModel : ObservableObject
     private string _transcript = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = "Готов. Нажми F4 для записи.";
+    private string _statusText = "Готов.";
+
+    public string RecordButtonText => IsRecording
+        ? "● Идёт запись... Отпусти для распознавания"
+        : "Нажми и держи F4 (или эту кнопку)";
 
     public MainViewModel(
         IAudioCaptureService capture,
         IWhisperService whisper,
-        IHotkeyService hotkey)
+        IHotkeyService hotkey,
+        IClipboardService clipboard,
+        SettingsService settings)
     {
         _capture = capture;
         _whisper = whisper;
         _hotkey = hotkey;
+        _clipboard = clipboard;
+        _settings = settings;
 
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
 
         try
         {
-            _hotkey.Register("F4");
-            StatusText = "Готов. Нажми F4 для записи.";
+            _hotkey.Register(_settings.Current.RecordHotkey);
+            StatusText = $"Готов. Хоткей: {_settings.Current.RecordHotkey}";
         }
         catch (Exception ex)
         {
             StatusText = $"Ошибка регистрации хоткея: {ex.Message}";
         }
+    }
+
+    partial void OnIsRecordingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(RecordButtonText));
+    }
+
+    [RelayCommand]
+    private void ToggleRecording()
+    {
+        if (IsRecording)
+            _ = StopRecording();
+        else
+            StartRecording();
     }
 
     [RelayCommand]
@@ -51,7 +75,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (IsRecording) return;
         _capture.Start();
         IsRecording = true;
-        StatusText = "Запись... Отпусти F4 для распознавания.";
+        StatusText = "Запись...";
     }
 
     [RelayCommand]
@@ -60,28 +84,59 @@ public sealed partial class MainViewModel : ObservableObject
         if (!IsRecording) return;
         var path = _capture.Stop();
         IsRecording = false;
-        StatusText = "Распознаю...";
 
+        // Защита от пустой записи: whisper-cli падает на WAV без данных
+        if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
+        {
+            Transcript = string.Empty;
+            StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Микрофон.";
+            return;
+        }
+
+        StatusText = "Распознаю...";
         try
         {
             var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
-            Transcript = string.IsNullOrWhiteSpace(text) ? "Тишина: текст не распознан." : text;
-            StatusText = "Готово. Нажми F4 для новой записи.";
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                Transcript = string.Empty;
+                StatusText = "Тишина: текст не распознан.";
+                return;
+            }
+
+            Transcript = text;
+            await _clipboard.SetTextAsync(text);
+
+            if (_settings.Current.AutoPaste)
+            {
+                StatusText = "Вставляю в активное окно...";
+                await _clipboard.PasteIntoActiveWindowAsync();
+            }
+
+            StatusText = "Готово. Текст скопирован в буфер.";
         }
         catch (Exception ex)
         {
-            Transcript = $"Ошибка: {ex.Message}";
-            StatusText = "Ошибка распознавания.";
+            Transcript = string.Empty;
+            StatusText = $"Ошибка распознавания: {ex.Message}";
         }
     }
 
-    private void OnRecordPressed()
+    [RelayCommand]
+    private async Task Copy()
     {
-        StartRecording();
+        if (string.IsNullOrWhiteSpace(Transcript)) return;
+        await _clipboard.SetTextAsync(Transcript);
+        StatusText = "Скопировано в буфер.";
     }
 
-    private void OnRecordReleased()
+    [RelayCommand]
+    private void Clear()
     {
-        _ = StopRecording();
+        Transcript = string.Empty;
+        StatusText = "Очищено.";
     }
+
+    private void OnRecordPressed() => StartRecording();
+    private void OnRecordReleased() => _ = StopRecording();
 }
