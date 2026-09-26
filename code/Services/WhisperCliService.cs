@@ -4,12 +4,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
 namespace Leron.Audio.Services;
+
 public sealed class WhisperCliService : IWhisperService
 {
     private const int CrashFailfast = -1073740791; // 0xC0000409: тихий abort внутри whisper-cli
     private const uint GgmlMagic = 0x67676d6cu;    // "ggml"
     private readonly SettingsService _settings;
+
     public WhisperCliService(SettingsService settings)
     {
         _settings = settings;
@@ -17,7 +20,7 @@ public sealed class WhisperCliService : IWhisperService
 
     public Task WarmUpAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
+    public async Task<TranscriptResult> TranscribeAsync(string wavPath, CancellationToken ct)
     {
         var cli = ModelLocator.FindWhisperCli()
             ?? throw new FileNotFoundException(
@@ -31,7 +34,15 @@ public sealed class WhisperCliService : IWhisperService
         foreach (var threads in new[] { 4, 1 })
         {
             var result = await RunOnce(cli, model, wavPath, threads, ct);
-            if (result.Success) return result.Text;
+            if (result.Success)
+            {
+                // CLI-резерв отдаёт текст без таймкодов: один сегмент на всю диктовку
+                return new TranscriptResult
+                {
+                    Text = result.Text,
+                    Segments = { new TranscriptSegment { Start = 0, End = 0, Text = result.Text } }
+                };
+            }
             if (result.ExitCode != CrashFailfast)
             {
                 throw new InvalidOperationException(
@@ -43,6 +54,7 @@ public sealed class WhisperCliService : IWhisperService
             "Запусти download-whisper-cli.bat force для замены сборки на BLAS; " +
             "если не поможет — удали ggml-large-v3-turbo.bin и запусти download-model.bat.");
     }
+
     private static void ValidateModelFile(string model)
     {
         var info = new FileInfo(model);
@@ -62,8 +74,10 @@ public sealed class WhisperCliService : IWhisperService
                 $"Модель {model} повреждена (magic {magic:X8} вместо 67676D6C). Удали её и запусти download-model.bat.");
         }
     }
+
     private sealed record RunResult(
         bool Success, string Text, int ExitCode, string ErrorTail, string LogPath);
+
     private async Task<RunResult> RunOnce(
         string cli, string model, string wavPath, int threads, CancellationToken ct)
     {
@@ -105,6 +119,7 @@ public sealed class WhisperCliService : IWhisperService
         var tail = combined.Length > 300 ? combined[^300..] : combined;
         return new RunResult(false, string.Empty, process.ExitCode, tail, logPath);
     }
+
     private string WriteLog(string stdout, string stderr, int exitCode)
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "temp");
@@ -121,6 +136,7 @@ public sealed class WhisperCliService : IWhisperService
         }
         return logPath;
     }
+
     private string? ResolveModel()
     {
         var configured = _settings.Current.ModelPath;

@@ -28,5 +28,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Whisper.net" Version="1.9.2-preview1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.2-preview1" />
+    <!-- Шаг 4: все рантаймы ИИ в одной сборке (выбор пользователя 1=А).
+         Vulkan закрывает AMD/Intel, Cuda — NVIDIA, CPU остаётся фолбэком.
+         Если restore не найдёт preview этих двух пакетов — ставь Version="1.9.1". -->
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.2-preview1" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.2-preview1" />
   </ItemGroup>
 </Project>

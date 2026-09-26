@@ -1,3 +1,4 @@
+// code/ViewModels/MainViewModel.cs
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -41,10 +42,8 @@ public sealed partial class MainViewModel : ObservableObject
         _hotkey = hotkey;
         _clipboard = clipboard;
         _settings = settings;
-
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
-
         try
         {
             _hotkey.Register(_settings.Current.RecordHotkey);
@@ -85,7 +84,6 @@ public sealed partial class MainViewModel : ObservableObject
         if (!IsRecording) return;
         var path = _capture.Stop();
         IsRecording = false;
-
         // Защита от пустой записи: whisper-cli падает на WAV без данных
         if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
         {
@@ -93,25 +91,24 @@ public sealed partial class MainViewModel : ObservableObject
             StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Микрофон.";
             return;
         }
-
         StatusText = "Распознаю...";
         var sw = Stopwatch.StartNew();
         try
         {
-            var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            // Шаг 4: сервис возвращает TranscriptResult (текст + сегменты с таймкодами);
+            // сегменты понадобятся в Шаге 5 для панели транскрипта и истории.
+            var result = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            var text = result.Text;
             sw.Stop();
             var spent = $"Распознано за {sw.Elapsed.TotalSeconds:F1} с.";
-
             if (string.IsNullOrWhiteSpace(text))
             {
                 Transcript = string.Empty;
                 StatusText = $"Тишина: текст не распознан. {spent}";
                 return;
             }
-
             Transcript = text;
             await _clipboard.SetTextAsync(text);
-
             if (_settings.Current.AutoPaste)
             {
                 StatusText = $"{spent} Вставляю в активное окно...";
@@ -147,6 +144,5 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void OnRecordPressed() => StartRecording();
-
     private void OnRecordReleased() => _ = StopRecording();
 }

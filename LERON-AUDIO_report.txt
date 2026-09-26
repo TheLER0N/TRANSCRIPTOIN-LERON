@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 22:34:25
+  GENERATED      : 26.09.2026 22:48:29
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -406,7 +406,7 @@ pause
 
 ------------------------------------------------
 FILE: release-to-github.bat
-SIZE: 5969 bytes
+SIZE: 6067 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -425,27 +425,27 @@ echo.
 :: ── Проверка окружения ──────────────────────────────────────────
 where dotnet >nul 2>&1
 if !errorlevel! neq 0 (
-    echo   [XX] dotnet не найден. Установи .NET 8 SDK.
-    pause
-    exit /b 1
+echo   [XX] dotnet не найден. Установи .NET 8 SDK.
+pause
+exit /b 1
 )
 if not exist "%PROJ%" (
-    echo   [XX] Leron.Audio.csproj не найден: %PROJ%
-    pause
-    exit /b 1
+echo   [XX] Leron.Audio.csproj не найден: %PROJ%
+pause
+exit /b 1
 )
 if not exist "%MODEL%" (
-    echo   [XX] Модель Whisper не найдена: %MODEL%
-    echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
-    pause
-    exit /b 1
+echo   [XX] Модель Whisper не найдена: %MODEL%
+echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
+pause
+exit /b 1
 )
 :: ── Ввод данных релиза ──────────────────────────────────────────
 set /p "VER=   Версия (например 1.0.0): "
 if "!VER!"=="" (
-    echo   [XX] Версия не указана.
-    pause
-    exit /b 1
+echo   [XX] Версия не указана.
+pause
+exit /b 1
 )
 set /p "TITLE=   Название (Enter = LERON-AUDIO v!VER!): "
 if "!TITLE!"=="" set "TITLE=LERON-AUDIO v!VER!"
@@ -461,26 +461,28 @@ echo ================================================================
 echo.
 set /p "CONFIRM=   Продолжить? [Y/n]: "
 if /i "!CONFIRM!"=="n" (
-    echo   Отменено.
-    pause
-    exit /b 0
+echo   Отменено.
+pause
+exit /b 0
 )
 :: ── [1/4] Сборка Release ────────────────────────────────────────
 echo.
 echo   [1/4] dotnet publish (Release)...
 if exist "%BUILD_DIR%" (
-    :: Не удаляем всю папку — бережём settings.json, если пользователь там что-то положил
-    for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.bin") do (
-        if /i not "%%~nxF"=="settings.json" del "%%F" 2>nul
-    )
-    if exist "%BUILD_DIR%\runtimes" rd /s /q "%BUILD_DIR%\runtimes" 2>nul
+:: Не удаляем всю папку — бережём settings.json, если пользователь там что-то положил
+for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.bin") do (
+if /i not "%%~nxF"=="settings.json" del "%%F" 2>nul
+)
+:: ВАЖНО (Шаг 4): папку runtimes\ НЕ удаляем — там native-библиотеки
+:: рантаймов Whisper.net (CPU/Vulkan/CUDA), они обязаны попасть в zip,
+:: иначе релиз на чужой машине молча откатится на CPU или упадёт.
 )
 dotnet publish "%PROJ%" -c Release -r win-x64 --self-contained false -o "%BUILD_DIR%" --nologo -v q
 if !errorlevel! neq 0 (
-    echo.
-    echo   [XX] Сборка не удалась — повтори dotnet publish вручную.
-    pause
-    exit /b 1
+echo.
+echo   [XX] Сборка не удалась — повтори dotnet publish вручную.
+pause
+exit /b 1
 )
 echo   [OK] Собрано в %BUILD_DIR%
 :: ── [2/4] Копирование модели Whisper ────────────────────────────
@@ -488,19 +490,19 @@ echo.
 echo   [2/4] Копирую модель Whisper в релизную папку...
 copy /y "%MODEL%" "%BUILD_DIR%\ggml-large-v3-turbo.bin" >nul
 if !errorlevel! neq 0 (
-    echo   [XX] Не удалось скопировать модель.
-    pause
-    exit /b 1
+echo   [XX] Не удалось скопировать модель.
+pause
+exit /b 1
 )
 for %%A in ("%MODEL%") do set /a "MODEL_MB=%%~zA / 1048576"
 echo   [OK] Модель скопирована (~!MODEL_MB! MB)
 :: whisper-cli.exe копируем вместе с DLL, иначе релиз не запустится
 if exist "%ROOT%build\whisper-cli.exe" (
-    copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
-    for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
-        if exist "%ROOT%build\%%D" copy /y "%ROOT%build\%%D" "%BUILD_DIR%\%%D" >nul
-    )
-    echo   [OK] whisper-cli.exe и DLL скопированы
+copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
+for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
+if exist "%ROOT%build\%%D" copy /y "%ROOT%build\%%D" "%BUILD_DIR%\%%D" >nul
+)
+echo   [OK] whisper-cli.exe и DLL скопированы
 )
 :: ── [3/4] Создание ZIP ──────────────────────────────────────────
 echo.
@@ -511,9 +513,9 @@ if not exist "%ROOT%release" mkdir "%ROOT%release"
 if exist "!ZIP_PATH!" del "!ZIP_PATH!"
 powershell -NoProfile -Command "Compress-Archive -Path '%BUILD_DIR%\*' -DestinationPath '!ZIP_PATH!' -Force"
 if !errorlevel! neq 0 (
-    echo   [XX] Не удалось создать архив.
-    pause
-    exit /b 1
+echo   [XX] Не удалось создать архив.
+pause
+exit /b 1
 )
 for %%A in ("!ZIP_PATH!") do set /a "ZIP_MB=%%~zA / 1048576"
 echo   [OK] Архив: !ZIP_PATH! (~!ZIP_MB! MB)
@@ -765,7 +767,7 @@ EndGlobal
 
 ------------------------------------------------
 FILE: code\Leron.Audio.csproj
-SIZE: 1626 bytes
+SIZE: 2145 bytes
 ------------------------------------------------
 <!-- code/Leron.Audio.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
@@ -797,6 +799,11 @@ SIZE: 1626 bytes
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Whisper.net" Version="1.9.2-preview1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.2-preview1" />
+    <!-- Шаг 4: все рантаймы ИИ в одной сборке (выбор пользователя 1=А).
+         Vulkan закрывает AMD/Intel, Cuda — NVIDIA, CPU остаётся фолбэком.
+         Если restore не найдёт preview этих двух пакетов — ставь Version="1.9.1". -->
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.2-preview1" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.2-preview1" />
   </ItemGroup>
 </Project>
 
@@ -1389,18 +1396,32 @@ public interface IHotkeyService
 
 ------------------------------------------------
 FILE: code\Services\IWhisperService.cs
-SIZE: 286 bytes
+SIZE: 676 bytes
 ------------------------------------------------
 // code/Services/IWhisperService.cs
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Leron.Audio.Services;
 
+public sealed class TranscriptSegment
+{
+    public double Start { get; set; }
+    public double End { get; set; }
+    public string Text { get; set; } = string.Empty;
+}
+
+public sealed class TranscriptResult
+{
+    public string Text { get; set; } = string.Empty;
+    public List<TranscriptSegment> Segments { get; set; } = new();
+}
+
 public interface IWhisperService
 {
     Task WarmUpAsync(CancellationToken ct);
-    Task<string> TranscribeAsync(string wavPath, CancellationToken ct);
+    Task<TranscriptResult> TranscribeAsync(string wavPath, CancellationToken ct);
 }
 
 ------------------------------------------------
@@ -1974,12 +1995,14 @@ public sealed class NHotkeyService : IHotkeyService, IDisposable
 
 ------------------------------------------------
 FILE: code\Services\RuntimeService.cs
-SIZE: 4482 bytes
+SIZE: 7407 bytes
 ------------------------------------------------
 // code/Services/RuntimeService.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using Microsoft.Win32;
 
 namespace Leron.Audio.Services;
@@ -2034,6 +2057,73 @@ public sealed class RuntimeService
 
     public string ResolveBackend(string? modeText) => ResolveBackend(ParseMode(modeText));
 
+    /// Пиннинг бэкенда в Whisper.net через RuntimeOptions
+    /// (ForcedRuntimeLibrary / RuntimeLibraryOrder — что есть в пакете).
+    /// Vulkan/CUDA пинятся ТОЛЬКО если их native-библиотеки обнаружены на диске:
+    /// force обходит проверки совместимости лоадера, несовместимый force может
+    /// уронить процесс на нативном уровне.
+    public bool ApplyBackendPin(string backend)
+    {
+        return backend switch
+        {
+            "cpu" => TryPin("Cpu"),
+            "vulkan" when AvailableRuntimes.Contains("vulkan") => TryPin("Vulkan"),
+            "cuda" when AvailableRuntimes.Contains("cuda") => TryPin("Cuda"),
+            _ => false
+        };
+    }
+
+    private static bool TryPin(string enumName)
+    {
+        try
+        {
+            var asm = typeof(Whisper.net.WhisperFactory).Assembly;
+            var optionsType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeOptions");
+            var libType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeLibrary" && t.IsEnum);
+            if (optionsType is null || libType is null) return false;
+            var value = Enum.Parse(libType, enumName);
+
+            var forced = optionsType.GetProperty("ForcedRuntimeLibrary", BindingFlags.Public | BindingFlags.Static);
+            if (forced is not null && forced.PropertyType == libType)
+            {
+                forced.SetValue(null, value);
+                return true;
+            }
+
+            var order = optionsType.GetProperty("RuntimeLibraryOrder", BindingFlags.Public | BindingFlags.Static);
+            if (order is not null)
+            {
+                object? list = null;
+                if (order.PropertyType.IsArray)
+                {
+                    var arr = Array.CreateInstance(libType, 1);
+                    arr.SetValue(value, 0);
+                    list = arr;
+                }
+                else if (typeof(System.Collections.IList).IsAssignableFrom(order.PropertyType))
+                {
+                    var inst = Activator.CreateInstance(order.PropertyType);
+                    if (inst is System.Collections.IList il)
+                    {
+                        il.Add(value);
+                        list = il;
+                    }
+                }
+                if (list is not null)
+                {
+                    order.SetValue(null, list);
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch
+        {
+            // Рефлексия не нашла API этой версии пакета — оставляем авто-порядок лоадера
+            return false;
+        }
+    }
+
     private static string DetectVendor()
     {
         var vendors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2080,7 +2170,7 @@ public sealed class RuntimeService
         return names.Count > 0 ? string.Join(", ", names) : "GPU не определён";
     }
 
-    /// Наличие native-библиотек рантаймов рядом с exe (имена сверяются в Шаге 4).
+    /// Наличие native-библиотек рантаймов рядом с exe / в runtimes/win-x64/native.
     private static IReadOnlyList<string> DetectAvailable()
     {
         var list = new List<string> { "cpu" };
@@ -2270,7 +2360,7 @@ public sealed class TempWavWriter : IDisposable
 
 ------------------------------------------------
 FILE: code\Services\WhisperCliService.cs
-SIZE: 6244 bytes
+SIZE: 6647 bytes
 ------------------------------------------------
 // code/Services/WhisperCliService.cs
 using System;
@@ -2278,12 +2368,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
 namespace Leron.Audio.Services;
+
 public sealed class WhisperCliService : IWhisperService
 {
     private const int CrashFailfast = -1073740791; // 0xC0000409: тихий abort внутри whisper-cli
     private const uint GgmlMagic = 0x67676d6cu;    // "ggml"
     private readonly SettingsService _settings;
+
     public WhisperCliService(SettingsService settings)
     {
         _settings = settings;
@@ -2291,7 +2384,7 @@ public sealed class WhisperCliService : IWhisperService
 
     public Task WarmUpAsync(CancellationToken ct) => Task.CompletedTask;
 
-    public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
+    public async Task<TranscriptResult> TranscribeAsync(string wavPath, CancellationToken ct)
     {
         var cli = ModelLocator.FindWhisperCli()
             ?? throw new FileNotFoundException(
@@ -2305,7 +2398,15 @@ public sealed class WhisperCliService : IWhisperService
         foreach (var threads in new[] { 4, 1 })
         {
             var result = await RunOnce(cli, model, wavPath, threads, ct);
-            if (result.Success) return result.Text;
+            if (result.Success)
+            {
+                // CLI-резерв отдаёт текст без таймкодов: один сегмент на всю диктовку
+                return new TranscriptResult
+                {
+                    Text = result.Text,
+                    Segments = { new TranscriptSegment { Start = 0, End = 0, Text = result.Text } }
+                };
+            }
             if (result.ExitCode != CrashFailfast)
             {
                 throw new InvalidOperationException(
@@ -2317,6 +2418,7 @@ public sealed class WhisperCliService : IWhisperService
             "Запусти download-whisper-cli.bat force для замены сборки на BLAS; " +
             "если не поможет — удали ggml-large-v3-turbo.bin и запусти download-model.bat.");
     }
+
     private static void ValidateModelFile(string model)
     {
         var info = new FileInfo(model);
@@ -2336,8 +2438,10 @@ public sealed class WhisperCliService : IWhisperService
                 $"Модель {model} повреждена (magic {magic:X8} вместо 67676D6C). Удали её и запусти download-model.bat.");
         }
     }
+
     private sealed record RunResult(
         bool Success, string Text, int ExitCode, string ErrorTail, string LogPath);
+
     private async Task<RunResult> RunOnce(
         string cli, string model, string wavPath, int threads, CancellationToken ct)
     {
@@ -2379,6 +2483,7 @@ public sealed class WhisperCliService : IWhisperService
         var tail = combined.Length > 300 ? combined[^300..] : combined;
         return new RunResult(false, string.Empty, process.ExitCode, tail, logPath);
     }
+
     private string WriteLog(string stdout, string stderr, int exitCode)
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "temp");
@@ -2395,6 +2500,7 @@ public sealed class WhisperCliService : IWhisperService
         }
         return logPath;
     }
+
     private string? ResolveModel()
     {
         var configured = _settings.Current.ModelPath;
@@ -2406,8 +2512,9 @@ public sealed class WhisperCliService : IWhisperService
 
 ------------------------------------------------
 FILE: code\Services\WhisperNetService.cs
-SIZE: 4012 bytes
+SIZE: 5170 bytes
 ------------------------------------------------
+// code/Services/WhisperNetService.cs
 using System;
 using System.IO;
 using System.Text;
@@ -2420,14 +2527,17 @@ namespace Leron.Audio.Services;
 public sealed class WhisperNetService : IWhisperService, IDisposable
 {
     private readonly SettingsService _settings;
+    private readonly RuntimeService _runtime;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private WhisperFactory? _factory;
     private WhisperProcessor? _processor;
     private string? _builtModelPath;
+    private string? _builtBackend;
 
-    public WhisperNetService(SettingsService settings)
+    public WhisperNetService(SettingsService settings, RuntimeService runtime)
     {
         _settings = settings;
+        _runtime = runtime;
     }
 
     public async Task WarmUpAsync(CancellationToken ct)
@@ -2448,28 +2558,33 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         }
     }
 
-    public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
+    public async Task<TranscriptResult> TranscribeAsync(string wavPath, CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
         try
         {
             ct.ThrowIfCancellationRequested();
             var processor = EnsureProcessor();
-
             await using var stream = File.OpenRead(wavPath);
+            var result = new TranscriptResult();
             var sb = new StringBuilder();
             await foreach (var segment in processor.ProcessAsync(stream, ct))
             {
                 ct.ThrowIfCancellationRequested();
-                var text = segment.Text;
+                var text = segment.Text?.Trim();
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
-
                 if (sb.Length > 0) sb.Append(' ');
-                sb.Append(text.Trim());
+                sb.Append(text);
+                result.Segments.Add(new TranscriptSegment
+                {
+                    Start = segment.Start.TotalSeconds,
+                    End = segment.End.TotalSeconds,
+                    Text = text
+                });
             }
-
-            return sb.ToString().Trim();
+            result.Text = sb.ToString().Trim();
+            return result;
         }
         finally
         {
@@ -2482,9 +2597,11 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         var model = ResolveModel()
             ?? throw new FileNotFoundException(
                 "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
-
-        // Процессор строится ОДИН раз на модель и переиспользуется всеми диктовками
-        if (_processor is not null && _builtModelPath == model)
+        var backend = _runtime.ResolveBackend(_settings.Current.RuntimeMode);
+        // Процессор строится ОДИН раз на пару (модель, бэкенд) и переиспользуется
+        // всеми диктовками; смена рантайма или модели в настройках пересобирает
+        // его без перезапуска приложения.
+        if (_processor is not null && _builtModelPath == model && _builtBackend == backend)
             return _processor;
 
         _processor?.Dispose();
@@ -2492,17 +2609,18 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         _factory?.Dispose();
         _factory = null;
 
+        // Пиннинг бэкенда выполняется ДО создания фабрики; пинится только
+        // обнаруженный на диске рантайм, иначе остаётся авто-порядок лоадера.
+        _runtime.ApplyBackendPin(backend);
         _factory = WhisperFactory.FromPath(model);
 
         var language = string.IsNullOrWhiteSpace(_settings.Current.Language)
             ? "auto"
             : _settings.Current.Language;
-
         // Скорость: потоки = физическим ядрам, температура 0 без fallback-пересэмплирований
         // (TemperatureInc=0 отключает повторные проходы декодера), старый текст не тянется
         // в новые диктовки (NoContext).
         var threads = Math.Max(2, Environment.ProcessorCount / 2);
-
         _processor = _factory.CreateBuilder()
             .WithLanguage(language)
             .WithNoContext()
@@ -2511,6 +2629,7 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
             .WithThreads(threads)
             .Build();
         _builtModelPath = model;
+        _builtBackend = backend;
         return _processor;
     }
 
@@ -2519,7 +2638,6 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         var configured = _settings.Current.ModelPath;
         if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured))
             return configured;
-
         return ModelLocator.FindModel();
     }
 
@@ -2898,8 +3016,9 @@ SIZE: 21808 bytes
 
 ------------------------------------------------
 FILE: code\ViewModels\MainViewModel.cs
-SIZE: 4726 bytes
+SIZE: 5052 bytes
 ------------------------------------------------
+// code/ViewModels/MainViewModel.cs
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -2943,10 +3062,8 @@ public sealed partial class MainViewModel : ObservableObject
         _hotkey = hotkey;
         _clipboard = clipboard;
         _settings = settings;
-
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
-
         try
         {
             _hotkey.Register(_settings.Current.RecordHotkey);
@@ -2987,7 +3104,6 @@ public sealed partial class MainViewModel : ObservableObject
         if (!IsRecording) return;
         var path = _capture.Stop();
         IsRecording = false;
-
         // Защита от пустой записи: whisper-cli падает на WAV без данных
         if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
         {
@@ -2995,25 +3111,24 @@ public sealed partial class MainViewModel : ObservableObject
             StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Микрофон.";
             return;
         }
-
         StatusText = "Распознаю...";
         var sw = Stopwatch.StartNew();
         try
         {
-            var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            // Шаг 4: сервис возвращает TranscriptResult (текст + сегменты с таймкодами);
+            // сегменты понадобятся в Шаге 5 для панели транскрипта и истории.
+            var result = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            var text = result.Text;
             sw.Stop();
             var spent = $"Распознано за {sw.Elapsed.TotalSeconds:F1} с.";
-
             if (string.IsNullOrWhiteSpace(text))
             {
                 Transcript = string.Empty;
                 StatusText = $"Тишина: текст не распознан. {spent}";
                 return;
             }
-
             Transcript = text;
             await _clipboard.SetTextAsync(text);
-
             if (_settings.Current.AutoPaste)
             {
                 StatusText = $"{spent} Вставляю в активное окно...";
@@ -3049,7 +3164,6 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void OnRecordPressed() => StartRecording();
-
     private void OnRecordReleased() => _ = StopRecording();
 }
 

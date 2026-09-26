@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using Microsoft.Win32;
 
 namespace Leron.Audio.Services;
@@ -56,6 +58,73 @@ public sealed class RuntimeService
 
     public string ResolveBackend(string? modeText) => ResolveBackend(ParseMode(modeText));
 
+    /// Пиннинг бэкенда в Whisper.net через RuntimeOptions
+    /// (ForcedRuntimeLibrary / RuntimeLibraryOrder — что есть в пакете).
+    /// Vulkan/CUDA пинятся ТОЛЬКО если их native-библиотеки обнаружены на диске:
+    /// force обходит проверки совместимости лоадера, несовместимый force может
+    /// уронить процесс на нативном уровне.
+    public bool ApplyBackendPin(string backend)
+    {
+        return backend switch
+        {
+            "cpu" => TryPin("Cpu"),
+            "vulkan" when AvailableRuntimes.Contains("vulkan") => TryPin("Vulkan"),
+            "cuda" when AvailableRuntimes.Contains("cuda") => TryPin("Cuda"),
+            _ => false
+        };
+    }
+
+    private static bool TryPin(string enumName)
+    {
+        try
+        {
+            var asm = typeof(Whisper.net.WhisperFactory).Assembly;
+            var optionsType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeOptions");
+            var libType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeLibrary" && t.IsEnum);
+            if (optionsType is null || libType is null) return false;
+            var value = Enum.Parse(libType, enumName);
+
+            var forced = optionsType.GetProperty("ForcedRuntimeLibrary", BindingFlags.Public | BindingFlags.Static);
+            if (forced is not null && forced.PropertyType == libType)
+            {
+                forced.SetValue(null, value);
+                return true;
+            }
+
+            var order = optionsType.GetProperty("RuntimeLibraryOrder", BindingFlags.Public | BindingFlags.Static);
+            if (order is not null)
+            {
+                object? list = null;
+                if (order.PropertyType.IsArray)
+                {
+                    var arr = Array.CreateInstance(libType, 1);
+                    arr.SetValue(value, 0);
+                    list = arr;
+                }
+                else if (typeof(System.Collections.IList).IsAssignableFrom(order.PropertyType))
+                {
+                    var inst = Activator.CreateInstance(order.PropertyType);
+                    if (inst is System.Collections.IList il)
+                    {
+                        il.Add(value);
+                        list = il;
+                    }
+                }
+                if (list is not null)
+                {
+                    order.SetValue(null, list);
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch
+        {
+            // Рефлексия не нашла API этой версии пакета — оставляем авто-порядок лоадера
+            return false;
+        }
+    }
+
     private static string DetectVendor()
     {
         var vendors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -102,7 +171,7 @@ public sealed class RuntimeService
         return names.Count > 0 ? string.Join(", ", names) : "GPU не определён";
     }
 
-    /// Наличие native-библиотек рантаймов рядом с exe (имена сверяются в Шаге 4).
+    /// Наличие native-библиотек рантаймов рядом с exe / в runtimes/win-x64/native.
     private static IReadOnlyList<string> DetectAvailable()
     {
         var list = new List<string> { "cpu" };
