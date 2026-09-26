@@ -1,6 +1,8 @@
+// code/MainWindow.xaml.cs
 using System;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Leron.Audio.Services;
 using Leron.Audio.ViewModels;
 using Leron.Audio.Windows;
@@ -19,16 +21,30 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         _capture = capture;
-
         LevelMeter.Attach(capture);
         _capture.SamplesAvailable += OnMicSamples;
-
         PttButton.RenderTransform = _pttScale;
+
+        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
+        TryLoadIcon();
+
         Closed += (_, _) =>
         {
             _capture.SamplesAvailable -= OnMicSamples;
             LevelMeter.Detach();
         };
+    }
+
+    private void TryLoadIcon()
+    {
+        try
+        {
+            Icon = new BitmapImage(new Uri("pack://application:,,,/Leron.Audio;component/Assets/icon.ico"));
+        }
+        catch
+        {
+            // Файл отсутствует — остаётся дефолтная иконка окна
+        }
     }
 
     private void OnMicSamples(float[] samples)
@@ -39,12 +55,9 @@ public partial class MainWindow : Window
             float a = Math.Abs(samples[i]);
             if (a > peak) peak = a;
         }
-
         Dispatcher.BeginInvoke(new Action(() =>
         {
             _level = Math.Max(peak, _level * 0.75f);
-
-            // Кнопка «дёргается» от звука только пока идёт запись
             bool recording = DataContext is MainViewModel vm && vm.IsRecording;
             double scale = recording ? 1.0 + Math.Clamp(_level, 0f, 1f) * 0.06 : 1.0;
             _pttScale.ScaleX = scale;

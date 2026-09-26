@@ -1,5 +1,8 @@
+// code/Windows/SettingsWindow.xaml.cs
+using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using Leron.Audio.ViewModels;
 
 namespace Leron.Audio.Windows;
@@ -11,6 +14,21 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
+
+        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
+        TryLoadIcon();
+    }
+
+    private void TryLoadIcon()
+    {
+        try
+        {
+            Icon = new BitmapImage(new Uri("pack://application:,,,/Leron.Audio;component/Assets/icon.ico"));
+        }
+        catch
+        {
+            // Файл отсутствует — остаётся дефолтная иконка окна
+        }
     }
 
     private void OnHotkeyCapture(object sender, KeyEventArgs e)

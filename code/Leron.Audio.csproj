@@ -1,5 +1,5 @@
+<!-- code/Leron.Audio.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -13,8 +13,11 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <NoWarn>NU1701</NoWarn>
+    <ApplicationIcon Condition="Exists('Assets/icon.ico')">Assets/icon.ico</ApplicationIcon>
   </PropertyGroup>
-
+  <ItemGroup Condition="Exists('Assets/icon.ico')">
+    <Resource Include="Assets/icon.ico" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="NHotkey.Wpf" Version="3.0.0" />
@@ -24,5 +27,4 @@
     <PackageReference Include="Whisper.net" Version="1.9.2-preview1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.2-preview1" />
   </ItemGroup>
-
 </Project>
