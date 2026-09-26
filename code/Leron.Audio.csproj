@@ -13,6 +13,8 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <NoWarn>NU1701</NoWarn>
+    <!-- Иконка приложения: подхватывается автоматически, как только положишь
+         файл code/Assets/icon.ico. Пока файла нет — сборка не ломается. -->
     <ApplicationIcon Condition="Exists('Assets/icon.ico')">Assets/icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup Condition="Exists('Assets/icon.ico')">

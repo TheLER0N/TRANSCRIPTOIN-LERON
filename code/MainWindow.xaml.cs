@@ -24,10 +24,7 @@ public partial class MainWindow : Window
         LevelMeter.Attach(capture);
         _capture.SamplesAvailable += OnMicSamples;
         PttButton.RenderTransform = _pttScale;
-
-        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
         TryLoadIcon();
-
         Closed += (_, _) =>
         {
             _capture.SamplesAvailable -= OnMicSamples;
@@ -35,6 +32,9 @@ public partial class MainWindow : Window
         };
     }
 
+    /// Пытается загрузить монохромную иконку приложения в тайтл-бар и таскбар.
+    /// Если файла Assets/icon.ico ещё нет — тихо оставляет системную иконку,
+    /// приложение не падает. Как только положишь файл — подхватится автоматически.
     private void TryLoadIcon()
     {
         try
@@ -43,7 +43,7 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Файл отсутствует — остаётся дефолтная иконка окна
+            // Файл отсутствует или повреждён — остаётся дефолтная иконка окна
         }
     }
 

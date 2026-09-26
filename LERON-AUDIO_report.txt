@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 22:20:28
+  GENERATED      : 26.09.2026 22:26:34
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -60,6 +60,8 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   +---App.xaml
 |   +---App.xaml.cs
 |   +---AssemblyInfo.cs
+|   +---Assets
+|   |   \---icon.ico
 |   +---build
 |   +---Leron.Audio.csproj
 |   +---LERON-Audio.sln
@@ -758,7 +760,7 @@ EndGlobal
 
 ------------------------------------------------
 FILE: code\Leron.Audio.csproj
-SIZE: 1375 bytes
+SIZE: 1626 bytes
 ------------------------------------------------
 <!-- code/Leron.Audio.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
@@ -775,6 +777,8 @@ SIZE: 1375 bytes
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <NoWarn>NU1701</NoWarn>
+    <!-- Иконка приложения: подхватывается автоматически, как только положишь
+         файл code/Assets/icon.ico. Пока файла нет — сборка не ломается. -->
     <ApplicationIcon Condition="Exists('Assets/icon.ico')">Assets/icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup Condition="Exists('Assets/icon.ico')">
@@ -793,8 +797,9 @@ SIZE: 1375 bytes
 
 ------------------------------------------------
 FILE: code\MainWindow.xaml
-SIZE: 4341 bytes
+SIZE: 4252 bytes
 ------------------------------------------------
+<!-- code/MainWindow.xaml -->
 <Window x:Class="Leron.Audio.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -812,9 +817,7 @@ SIZE: 4341 bytes
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-
         <controls:LevelMeter x:Name="LevelMeter" Height="28" Margin="0,0,0,16"/>
-
         <Button x:Name="PttButton"
                 Grid.Row="1"
                 Height="120"
@@ -834,7 +837,6 @@ SIZE: 4341 bytes
             </Button.Style>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Viewbox Width="30" Height="30" Margin="0,0,14,0">
-                    <!-- Монохромный микрофон: капсула + дуга + ножка -->
                     <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
                           Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
                 </Viewbox>
@@ -842,7 +844,6 @@ SIZE: 4341 bytes
                            VerticalAlignment="Center"/>
             </StackPanel>
         </Button>
-
         <Border Grid.Row="2"
                 Background="{StaticResource BrushPanel}"
                 BorderBrush="{StaticResource BrushBorder}"
@@ -860,14 +861,12 @@ SIZE: 4341 bytes
                          AcceptsReturn="True"/>
             </ScrollViewer>
         </Border>
-
         <TextBlock Grid.Row="3"
                    Text="{Binding StatusText}"
                    Foreground="{StaticResource BrushMuted}"
                    TextWrapping="Wrap"
                    Margin="0,16,0,0"
                    FontSize="13"/>
-
         <Grid Grid.Row="4" Margin="0,16,0,0">
             <Button Content="Настройки"
                     Click="OnSettingsClick"
@@ -888,7 +887,7 @@ SIZE: 4341 bytes
 
 ------------------------------------------------
 FILE: code\MainWindow.xaml.cs
-SIZE: 2317 bytes
+SIZE: 2644 bytes
 ------------------------------------------------
 // code/MainWindow.xaml.cs
 using System;
@@ -916,10 +915,7 @@ public partial class MainWindow : Window
         LevelMeter.Attach(capture);
         _capture.SamplesAvailable += OnMicSamples;
         PttButton.RenderTransform = _pttScale;
-
-        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
         TryLoadIcon();
-
         Closed += (_, _) =>
         {
             _capture.SamplesAvailable -= OnMicSamples;
@@ -927,6 +923,9 @@ public partial class MainWindow : Window
         };
     }
 
+    /// Пытается загрузить монохромную иконку приложения в тайтл-бар и таскбар.
+    /// Если файла Assets/icon.ico ещё нет — тихо оставляет системную иконку,
+    /// приложение не падает. Как только положишь файл — подхватится автоматически.
     private void TryLoadIcon()
     {
         try
@@ -935,7 +934,7 @@ public partial class MainWindow : Window
         }
         catch
         {
-            // Файл отсутствует — остаётся дефолтная иконка окна
+            // Файл отсутствует или повреждён — остаётся дефолтная иконка окна
         }
     }
 
@@ -3186,8 +3185,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
 ------------------------------------------------
 FILE: code\Windows\SettingsWindow.xaml
-SIZE: 6507 bytes
+SIZE: 6536 bytes
 ------------------------------------------------
+<!-- code/Windows/SettingsWindow.xaml -->
 <Window x:Class="Leron.Audio.Windows.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -3211,7 +3211,6 @@ SIZE: 6507 bytes
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        
         <TabControl>
             <TabItem Header="Горячие клавиши">
                 <StackPanel Margin="12">
@@ -3288,13 +3287,11 @@ SIZE: 6507 bytes
                 </StackPanel>
             </TabItem>
         </TabControl>
-
         <TextBlock Grid.Row="1"
                    Text="{Binding StatusMessage}"
                    Foreground="{StaticResource BrushMuted}"
                    TextWrapping="Wrap"
                    Margin="0,8,0,8"/>
-
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Сохранить"
                     Command="{Binding SaveCommand}"
@@ -3305,7 +3302,7 @@ SIZE: 6507 bytes
 
 ------------------------------------------------
 FILE: code\Windows\SettingsWindow.xaml.cs
-SIZE: 1108 bytes
+SIZE: 1229 bytes
 ------------------------------------------------
 // code/Windows/SettingsWindow.xaml.cs
 using System;
@@ -3323,11 +3320,11 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
-
-        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
         TryLoadIcon();
     }
 
+    /// Та же логика, что и в MainWindow: подхватывает иконку приложения,
+    /// если файл Assets/icon.ico лежит рядом; иначе оставляет дефолтную.
     private void TryLoadIcon()
     {
         try

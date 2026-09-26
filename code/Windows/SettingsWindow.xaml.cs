@@ -14,11 +14,11 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
-
-        // Иконка в тайтл-баре (если файл Assets/icon.ico лежит как Resource)
         TryLoadIcon();
     }
 
+    /// Та же логика, что и в MainWindow: подхватывает иконку приложения,
+    /// если файл Assets/icon.ico лежит рядом; иначе оставляет дефолтную.
     private void TryLoadIcon()
     {
         try
