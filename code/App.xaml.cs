@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -22,6 +24,7 @@ public partial class App : Application
         _serviceProvider = services.BuildServiceProvider();
 
         var capture = _serviceProvider.GetRequiredService<IAudioCaptureService>();
+        var whisper = _serviceProvider.GetRequiredService<IWhisperService>();
 
         var meter = new LevelMeter { Height = 28, Margin = new Thickness(0, 0, 0, 16) };
         meter.Attach(capture);
@@ -41,11 +44,27 @@ public partial class App : Application
             Margin = new Thickness(0, 0, 0, 16)
         };
 
-        void StopRecording()
+        async void StopRecording()
         {
             if (!capture.IsRecording) return;
             var path = capture.Stop();
-            status.Text = $"WAV сохранён: {path}";
+            button.IsEnabled = false;
+            status.Text = "Распознаю...";
+            try
+            {
+                var text = await whisper.TranscribeAsync(path, CancellationToken.None);
+                status.Text = string.IsNullOrWhiteSpace(text)
+                    ? "Тишина: текст не распознан."
+                    : $"Текст: {text}";
+            }
+            catch (Exception ex)
+            {
+                status.Text = $"Ошибка распознавания: {ex.Message}";
+            }
+            finally
+            {
+                button.IsEnabled = true;
+            }
         }
 
         button.PreviewMouseLeftButtonDown += (_, _) =>
@@ -78,8 +97,8 @@ public partial class App : Application
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
-        // Следующие шаги: IWhisperService, IHotkeyService, IClipboardService,
-        // SettingsService, MainViewModel.
+        services.AddSingleton<IWhisperService, WhisperCliService>();
+        // Следующие шаги: IHotkeyService, IClipboardService, SettingsService, MainViewModel.
     }
 
     private void OnDispatcherUnhandledException(

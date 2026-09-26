@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 17:44:16
+  GENERATED      : 26.09.2026 18:33:47
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -8,19 +8,51 @@
 
 C:\Users\Пользователь\Desktop\LERON-AUDIO
 +---.gitignore
++---build
+|   +---Release
+|   |   +---bench.exe
+|   |   +---command.exe
+|   |   +---ggml.dll
+|   |   +---ggml-base.dll
+|   |   +---ggml-cpu.dll
+|   |   +---main.exe
+|   |   +---SDL2.dll
+|   |   +---stream.exe
+|   |   +---test-vad.exe
+|   |   +---test-vad-full.exe
+|   |   +---wchess.exe
+|   |   +---whisper.dll
+|   |   +---whisper-bench.exe
+|   |   +---whisper-cli.exe
+|   |   +---whisper-command.exe
+|   |   +---whisper-lsp.exe
+|   |   +---whisper-quantize.exe
+|   |   +---whisper-server.exe
+|   |   +---whisper-stream.exe
+|   |   +---whisper-talk-llama.exe
+|   |   \---whisper-vad-speech-segments.exe
+|   \---whisper-cli.exe
 +---code
 |   +---App.xaml
 |   +---App.xaml.cs
 |   +---AssemblyInfo.cs
+|   +---build
 |   +---Leron.Audio.csproj
 |   +---LERON-Audio.sln
-|   \---Services
-|       +---App.xaml.cs
-|       +---IAudioCaptureService.cs
-|       +---LevelMeter.cs
-|       +---NAudioCaptureService.cs
-|       \---TempWavWriter.cs
+|   +---Services
+|   |   +---IAudioCaptureService.cs
+|   |   +---IHotkeyService.cs
+|   |   +---IWhisperService.cs
+|   |   +---LevelMeter.cs
+|   |   +---ModelLocator.cs
+|   |   +---NAudioCaptureService.cs
+|   |   +---NHotkeyService.cs
+|   |   +---TempWavWriter.cs
+|   |   \---WhisperCliService.cs
+|   \---ViewModels
+|       \---MainViewModel.cs
 +---download-model.bat
++---download-whisper-cli.bat
 +---ggml-large-v3-turbo.bin
 +---LERON-AUDIO_report.txt
 +---LERON-AUDIO_report_files.tmp
@@ -86,7 +118,7 @@ settings.json
 
 ------------------------------------------------
 FILE: download-model.bat
-SIZE: 1745 bytes
+SIZE: 1302 bytes
 ------------------------------------------------
 @echo off
 chcp 65001 >nul 2>&1
@@ -113,28 +145,94 @@ if exist "%MODEL%" (
 )
 
 echo   [i] Начинаю загрузку... Это может занять несколько минут.
-echo.
-
-:: Используем PowerShell для скачивания, отключаем прогресс-бар для скорости
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-"$ProgressPreference = 'SilentlyContinue';" ^
-"$url = '%URL%';" ^
-"$out = '%MODEL%';" ^
-"try {" ^
-"    Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing;" ^
-"    Write-Host '';" ^
-"    Write-Host '  [OK] Модель успешно скачана!';" ^
-"} catch {" ^
-"    Write-Host '';" ^
-"    Write-Host ('  [XX] Ошибка загрузки: ' + $_.Exception.Message);" ^
-"    Write-Host '      Проверь интернет-соединение или скачай файл вручную:';" ^
-"    Write-Host ('      ' + $url);" ^
-"    exit 1;" ^
-"}"
+curl.exe -fL --progress-bar -o "%MODEL%" "%URL%"
+if !errorlevel! neq 0 (
+    echo.
+    echo   [XX] Ошибка загрузки. Проверь интернет-соединение или скачай вручную:
+    echo       %URL%
+    pause
+    exit /b 1
+)
 
 if exist "%MODEL%" (
     echo.
-    echo   Теперь можно запускать start.bat или собирать Release.
+    echo   [OK] Модель успешно скачана!
+    echo       Теперь можно запускать start.bat или собирать Release.
+)
+
+echo.
+pause
+
+------------------------------------------------
+FILE: download-whisper-cli.bat
+SIZE: 2243 bytes
+------------------------------------------------
+@echo off
+chcp 65001 >nul 2>&1
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
+
+set "DEST=%~dp0build"
+set "ZIP=%TEMP%\leron-whisper-win-x64.zip"
+
+echo.
+echo ================================================================
+echo   LERON-AUDIO · DOWNLOAD WHISPER-CLI
+echo ================================================================
+echo.
+echo   Бинарник: whisper-cli.exe (Windows x64)
+echo   Папка   : %DEST%
+echo.
+
+if exist "%DEST%\whisper-cli.exe" (
+    echo   [i] whisper-cli.exe уже есть в build\. Скачивание не требуется.
+    pause
+    exit /b 0
+)
+
+if not exist "%DEST%" mkdir "%DEST%"
+
+set "OK="
+for %%U in (
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-bin-x64.zip
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.5/whisper-blas-bin-x64.zip
+    https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.4/whisper-bin-x64.zip
+) do if not defined OK (
+    echo   [i] Пробую: %%U
+    curl.exe -fL --progress-bar -o "%ZIP%" "%%U"
+    if not errorlevel 1 set "OK=1"
+)
+
+if not defined OK (
+    echo.
+    echo   [XX] Не удалось скачать ни с одного зеркала. Скачай вручную:
+    echo       https://github.com/ggml-org/whisper.cpp/releases
+    echo       и распакуй whisper-cli.exe в папку: %DEST%
+    pause
+    exit /b 1
+)
+
+echo   [i] Распаковываю в %DEST% ...
+tar.exe -xf "%ZIP%" -C "%DEST%"
+if !errorlevel! neq 0 (
+    echo   [XX] Распаковка не удалась.
+    pause
+    exit /b 1
+)
+del "%ZIP%" >nul 2>&1
+
+:: Fallback: если exe лёг в подпапку архива — поднимаем его в build\
+if not exist "%DEST%\whisper-cli.exe" (
+    for /r "%DEST%" %%F in (whisper-cli.exe) do copy /y "%%F" "%DEST%\whisper-cli.exe" >nul 2>&1
+)
+
+if exist "%DEST%\whisper-cli.exe" (
+    echo.
+    echo   [OK] whisper-cli.exe готов к работе.
+) else (
+    echo.
+    echo   [XX] whisper-cli.exe не найден в build\ после распаковки.
+    echo       Посмотри содержимое архива и положи exe в: %DEST%
 )
 
 echo.
@@ -458,9 +556,15 @@ SIZE: 204 bytes
 
 ------------------------------------------------
 FILE: code\App.xaml.cs
-SIZE: 1674 bytes
+SIZE: 4025 bytes
 ------------------------------------------------
+using System;
+using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using Leron.Audio.Controls;
+using Leron.Audio.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Leron.Audio;
@@ -479,23 +583,82 @@ public partial class App : Application
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
+        var capture = _serviceProvider.GetRequiredService<IAudioCaptureService>();
+        var whisper = _serviceProvider.GetRequiredService<IWhisperService>();
+
+        var meter = new LevelMeter { Height = 28, Margin = new Thickness(0, 0, 0, 16) };
+        meter.Attach(capture);
+
+        var status = new TextBlock
+        {
+            Text = "Готов. Зажми кнопку для тестовой записи.",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = new SolidColorBrush(Color.FromRgb(160, 165, 185))
+        };
+
+        var button = new Button
+        {
+            Content = "Держи для записи (тест)",
+            Height = 90,
+            FontSize = 16,
+            Margin = new Thickness(0, 0, 0, 16)
+        };
+
+        async void StopRecording()
+        {
+            if (!capture.IsRecording) return;
+            var path = capture.Stop();
+            button.IsEnabled = false;
+            status.Text = "Распознаю...";
+            try
+            {
+                var text = await whisper.TranscribeAsync(path, CancellationToken.None);
+                status.Text = string.IsNullOrWhiteSpace(text)
+                    ? "Тишина: текст не распознан."
+                    : $"Текст: {text}";
+            }
+            catch (Exception ex)
+            {
+                status.Text = $"Ошибка распознавания: {ex.Message}";
+            }
+            finally
+            {
+                button.IsEnabled = true;
+            }
+        }
+
+        button.PreviewMouseLeftButtonDown += (_, _) =>
+        {
+            capture.Start();
+            status.Text = "Запись...";
+        };
+        button.PreviewMouseLeftButtonUp += (_, _) => StopRecording();
+        button.MouseLeave += (_, _) => StopRecording();
+
+        var panel = new StackPanel { Margin = new Thickness(24) };
+        panel.Children.Add(meter);
+        panel.Children.Add(button);
+        panel.Children.Add(status);
+
         var window = new Window
         {
             Title = "LERON-AUDIO",
             Width = 480,
             Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = "LERON-AUDIO: каркас .NET 8 WPF готов."
+            Background = new SolidColorBrush(Color.FromRgb(24, 26, 36)),
+            Content = panel
         };
 
+        window.Closed += (_, _) => meter.Detach();
         window.Show();
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // DI будет заполняться в следующих шагах:
-        // IAudioCaptureService, IWhisperService, IHotkeyService,
-        // IClipboardService, SettingsService, MainViewModel.
+        services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
+        services.AddSingleton<IWhisperService, WhisperCliService>();
+        // Следующие шаги: IHotkeyService, IClipboardService, SettingsService, MainViewModel.
     }
 
     private void OnDispatcherUnhandledException(
@@ -565,7 +728,7 @@ EndGlobal
 
 ------------------------------------------------
 FILE: code\Leron.Audio.csproj
-SIZE: 957 bytes
+SIZE: 986 bytes
 ------------------------------------------------
 <Project Sdk="Microsoft.NET.Sdk">
 
@@ -581,6 +744,7 @@ SIZE: 957 bytes
     <Version>0.1.0</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -594,118 +758,51 @@ SIZE: 957 bytes
 </Project>
 
 ------------------------------------------------
-FILE: code\Services\App.xaml.cs
-SIZE: 3262 bytes
+FILE: code\Services\IAudioCaptureService.cs
+SIZE: 241 bytes
 ------------------------------------------------
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using Leron.Audio.Controls;
-using Leron.Audio.Services;
-using Microsoft.Extensions.DependencyInjection;
+using System;
 
-namespace Leron.Audio;
+namespace Leron.Audio.Services;
 
-public partial class App : Application
+public interface IAudioCaptureService
 {
-    private ServiceProvider? _serviceProvider;
-
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
-
-        DispatcherUnhandledException += OnDispatcherUnhandledException;
-
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-        _serviceProvider = services.BuildServiceProvider();
-
-        var capture = _serviceProvider.GetRequiredService<IAudioCaptureService>();
-
-        var meter = new LevelMeter { Height = 28, Margin = new Thickness(0, 0, 0, 16) };
-        meter.Attach(capture);
-
-        var status = new TextBlock
-        {
-            Text = "Готов. Зажми кнопку для тестовой записи.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.FromRgb(160, 165, 185))
-        };
-
-        var button = new Button
-        {
-            Content = "Держи для записи (тест)",
-            Height = 90,
-            FontSize = 16,
-            Margin = new Thickness(0, 0, 0, 16)
-        };
-
-        void StopRecording()
-        {
-            if (!capture.IsRecording) return;
-            var path = capture.Stop();
-            status.Text = $"WAV сохранён: {path}";
-        }
-
-        button.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            capture.Start();
-            status.Text = "Запись...";
-        };
-        button.PreviewMouseLeftButtonUp += (_, _) => StopRecording();
-        button.MouseLeave += (_, _) => StopRecording();
-
-        var panel = new StackPanel { Margin = new Thickness(24) };
-        panel.Children.Add(meter);
-        panel.Children.Add(button);
-        panel.Children.Add(status);
-
-        var window = new Window
-        {
-            Title = "LERON-AUDIO",
-            Width = 480,
-            Height = 640,
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = new SolidColorBrush(Color.FromRgb(24, 26, 36)),
-            Content = panel
-        };
-
-        window.Closed += (_, _) => meter.Detach();
-        window.Show();
-    }
-
-    private static void ConfigureServices(IServiceCollection services)
-    {
-        services.AddSingleton<IAudioCaptureService, NAudioCaptureService>();
-        // Следующие шаги: IWhisperService, IHotkeyService, IClipboardService,
-        // SettingsService, MainViewModel.
-    }
-
-    private void OnDispatcherUnhandledException(
-        object sender,
-        System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
-    {
-        MessageBox.Show(
-            $"Необработанная ошибка: {e.Exception.Message}",
-            "LERON-AUDIO",
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
-
-        e.Handled = true;
-    }
-
-    protected override void OnExit(ExitEventArgs e)
-    {
-        _serviceProvider?.Dispose();
-        base.OnExit(e);
-    }
+    event Action<float[]>? SamplesAvailable;
+    float PeakLevel { get; }
+    bool IsRecording { get; }
+    void Start();
+    string Stop();
 }
 
 ------------------------------------------------
-FILE: code\Services\IAudioCaptureService.cs
-SIZE: 0 bytes
+FILE: code\Services\IHotkeyService.cs
+SIZE: 217 bytes
 ------------------------------------------------
+using System;
 
+namespace Leron.Audio.Services;
+
+public interface IHotkeyService
+{
+    event Action? RecordPressed;
+    event Action? RecordReleased;
+    void Register(string hotkey);
+    void Unregister();
+}
+
+------------------------------------------------
+FILE: code\Services\IWhisperService.cs
+SIZE: 204 bytes
+------------------------------------------------
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Leron.Audio.Services;
+
+public interface IWhisperService
+{
+    Task<string> TranscribeAsync(string wavPath, CancellationToken ct);
+}
 
 ------------------------------------------------
 FILE: code\Services\LevelMeter.cs
@@ -781,6 +878,58 @@ public sealed class LevelMeter : FrameworkElement
                 null,
                 new Rect(0, 0, fillWidth, bounds.Height),
                 8, 8);
+        }
+    }
+}
+
+------------------------------------------------
+FILE: code\Services\ModelLocator.cs
+SIZE: 1306 bytes
+------------------------------------------------
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+namespace Leron.Audio.Services;
+
+public static class ModelLocator
+{
+    public static string? FindWhisperCli()
+    {
+        foreach (var root in EnumerateRoots())
+        {
+            var direct = Path.Combine(root, "whisper-cli.exe");
+            if (File.Exists(direct)) return direct;
+
+            var inBuild = Path.Combine(root, "build", "whisper-cli.exe");
+            if (File.Exists(inBuild)) return inBuild;
+        }
+        return null;
+    }
+
+    public static string? FindModel()
+    {
+        foreach (var root in EnumerateRoots())
+        {
+            var preferred = Path.Combine(root, "ggml-large-v3-turbo.bin");
+            if (File.Exists(preferred)) return preferred;
+
+            if (Directory.Exists(root))
+            {
+                foreach (var candidate in Directory.GetFiles(root, "ggml-*.bin"))
+                    return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateRoots()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 6 && dir is not null; i++)
+        {
+            yield return dir.FullName;
+            dir = dir.Parent;
         }
     }
 }
@@ -885,6 +1034,79 @@ public sealed class NAudioCaptureService : IAudioCaptureService, IDisposable
 }
 
 ------------------------------------------------
+FILE: code\Services\NHotkeyService.cs
+SIZE: 2098 bytes
+------------------------------------------------
+using System;
+using System.Windows.Input;
+using NHotkey;
+using NHotkey.Wpf;
+
+namespace Leron.Audio.Services;
+
+public sealed class NHotkeyService : IHotkeyService, IDisposable
+{
+    private const string HotkeyName = "LeronRecord";
+    private string? _currentHotkey;
+
+    public event Action? RecordPressed;
+    public event Action? RecordReleased;
+
+    public void Register(string hotkey)
+    {
+        Unregister();
+        _currentHotkey = hotkey;
+
+        try
+        {
+            var keyGesture = ParseHotkey(hotkey);
+            HotkeyManager.Current.AddOrReplace(HotkeyName, keyGesture.Key, keyGesture.Modifiers, OnHotkeyPressed);
+        }
+        catch (HotkeyAlreadyRegisteredException)
+        {
+            throw new InvalidOperationException($"Хоткей {hotkey} уже используется другим приложением.");
+        }
+    }
+
+    public void Unregister()
+    {
+        if (_currentHotkey is not null)
+        {
+            try
+            {
+                HotkeyManager.Current.Remove(HotkeyName);
+            }
+            catch
+            {
+                // Игнорируем ошибки при снятии регистрации
+            }
+            _currentHotkey = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        Unregister();
+    }
+
+    private void OnHotkeyPressed(object? sender, HotkeyEventArgs e)
+    {
+        // NHotkey.Wpf не поддерживает KeyDown/KeyUp для одного хоткея,
+        // поэтому эмулируем PTT через таймер или состояние
+        RecordPressed?.Invoke();
+        e.Handled = true;
+    }
+
+    private static KeyGesture ParseHotkey(string hotkey)
+    {
+        // Простой парсер: "F4", "Ctrl+Shift+F4", "Alt+Space"
+        var converter = new KeyGestureConverter();
+        var gesture = converter.ConvertFromString(hotkey) as KeyGesture;
+        return gesture ?? throw new ArgumentException($"Неверный формат хоткея: {hotkey}");
+    }
+}
+
+------------------------------------------------
 FILE: code\Services\TempWavWriter.cs
 SIZE: 2243 bytes
 ------------------------------------------------
@@ -958,6 +1180,164 @@ public sealed class TempWavWriter : IDisposable
         _writer.Write(_bits);
         _writer.Write(0x61746164u);      // "data"
         _writer.Write(_dataLength);
+    }
+}
+
+------------------------------------------------
+FILE: code\Services\WhisperCliService.cs
+SIZE: 2166 bytes
+------------------------------------------------
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Leron.Audio.Services;
+
+public sealed class WhisperCliService : IWhisperService
+{
+    public async Task<string> TranscribeAsync(string wavPath, CancellationToken ct)
+    {
+        var cli = ModelLocator.FindWhisperCli()
+            ?? throw new FileNotFoundException(
+                "whisper-cli.exe не найден. Запусти download-whisper-cli.bat в корне проекта.");
+
+        var model = ModelLocator.FindModel()
+            ?? throw new FileNotFoundException(
+                "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
+
+        var outBase = Path.Combine(Path.GetTempPath(), "leron_whisper_" + Guid.NewGuid().ToString("N"));
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = cli,
+            Arguments = $"-m \"{model}\" -f \"{wavPath}\" -otxt -of \"{outBase}\" -l auto -np -nt",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var errTask = process.StandardError.ReadToEndAsync(ct);
+        try
+        {
+            await process.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
+
+        var err = await errTask;
+        var txtPath = outBase + ".txt";
+
+        if (process.ExitCode != 0 || !File.Exists(txtPath))
+        {
+            var tail = err.Length > 400 ? err[^400..] : err;
+            throw new InvalidOperationException($"whisper-cli завершился с кодом {process.ExitCode}: {tail}");
+        }
+
+        var text = await File.ReadAllTextAsync(txtPath, ct);
+        try { File.Delete(txtPath); } catch { }
+
+        return text.Trim();
+    }
+}
+
+------------------------------------------------
+FILE: code\ViewModels\MainViewModel.cs
+SIZE: 2468 bytes
+------------------------------------------------
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Leron.Audio.Services;
+
+namespace Leron.Audio.ViewModels;
+
+public sealed partial class MainViewModel : ObservableObject
+{
+    private readonly IAudioCaptureService _capture;
+    private readonly IWhisperService _whisper;
+    private readonly IHotkeyService _hotkey;
+
+    [ObservableProperty]
+    private bool _isRecording;
+
+    [ObservableProperty]
+    private string _transcript = string.Empty;
+
+    [ObservableProperty]
+    private string _statusText = "Готов. Нажми F4 для записи.";
+
+    public MainViewModel(
+        IAudioCaptureService capture,
+        IWhisperService whisper,
+        IHotkeyService hotkey)
+    {
+        _capture = capture;
+        _whisper = whisper;
+        _hotkey = hotkey;
+
+        _hotkey.RecordPressed += OnRecordPressed;
+        _hotkey.RecordReleased += OnRecordReleased;
+
+        try
+        {
+            _hotkey.Register("F4");
+            StatusText = "Готов. Нажми F4 для записи.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Ошибка регистрации хоткея: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void StartRecording()
+    {
+        if (IsRecording) return;
+        _capture.Start();
+        IsRecording = true;
+        StatusText = "Запись... Отпусти F4 для распознавания.";
+    }
+
+    [RelayCommand]
+    private async Task StopRecording()
+    {
+        if (!IsRecording) return;
+        var path = _capture.Stop();
+        IsRecording = false;
+        StatusText = "Распознаю...";
+
+        try
+        {
+            var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            Transcript = string.IsNullOrWhiteSpace(text) ? "Тишина: текст не распознан." : text;
+            StatusText = "Готово. Нажми F4 для новой записи.";
+        }
+        catch (Exception ex)
+        {
+            Transcript = $"Ошибка: {ex.Message}";
+            StatusText = "Ошибка распознавания.";
+        }
+    }
+
+    private void OnRecordPressed()
+    {
+        StartRecording();
+    }
+
+    private void OnRecordReleased()
+    {
+        _ = StopRecording();
     }
 }
 

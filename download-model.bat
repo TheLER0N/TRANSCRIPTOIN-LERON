@@ -23,28 +23,19 @@ if exist "%MODEL%" (
 )
 
 echo   [i] Начинаю загрузку... Это может занять несколько минут.
-echo.
-
-:: Используем PowerShell для скачивания, отключаем прогресс-бар для скорости
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-"$ProgressPreference = 'SilentlyContinue';" ^
-"$url = '%URL%';" ^
-"$out = '%MODEL%';" ^
-"try {" ^
-"    Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing;" ^
-"    Write-Host '';" ^
-"    Write-Host '  [OK] Модель успешно скачана!';" ^
-"} catch {" ^
-"    Write-Host '';" ^
-"    Write-Host ('  [XX] Ошибка загрузки: ' + $_.Exception.Message);" ^
-"    Write-Host '      Проверь интернет-соединение или скачай файл вручную:';" ^
-"    Write-Host ('      ' + $url);" ^
-"    exit 1;" ^
-"}"
+curl.exe -fL --progress-bar -o "%MODEL%" "%URL%"
+if !errorlevel! neq 0 (
+    echo.
+    echo   [XX] Ошибка загрузки. Проверь интернет-соединение или скачай вручную:
+    echo       %URL%
+    pause
+    exit /b 1
+)
 
 if exist "%MODEL%" (
     echo.
-    echo   Теперь можно запускать start.bat или собирать Release.
+    echo   [OK] Модель успешно скачана!
+    echo       Теперь можно запускать start.bat или собирать Release.
 )
 
 echo.
