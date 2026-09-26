@@ -8,13 +8,20 @@ namespace Leron.Audio.Controls;
 
 public sealed class LevelMeter : FrameworkElement
 {
+    private const int BarCount = 48;
+
     private IAudioCaptureService? _source;
     private float _level;
+    private readonly float[] _bars = new float[BarCount];
+    private int _barIndex;
 
     /// true — дискретная сегмент-шкала (карточка устройства в сайдбаре),
     /// false — непрерывная полоса (прежнее поведение).
     public bool Segmented { get; set; }
     public int SegmentCount { get; set; } = 14;
+
+    /// true — вертикальные бары «живой волны» с историей пиков (панель записи).
+    public bool VerticalBars { get; set; }
 
     public void Attach(IAudioCaptureService source)
     {
@@ -41,6 +48,8 @@ public sealed class LevelMeter : FrameworkElement
         Dispatcher.BeginInvoke(new Action(() =>
         {
             _level = Math.Max(peak, _level * 0.80f);
+            _bars[_barIndex] = peak;
+            _barIndex = (_barIndex + 1) % BarCount;
             InvalidateVisual();
         }));
     }
@@ -49,6 +58,12 @@ public sealed class LevelMeter : FrameworkElement
     {
         var bounds = new Rect(new Point(0, 0), RenderSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+        if (VerticalBars)
+        {
+            RenderBars(dc, bounds);
+            return;
+        }
 
         if (Segmented)
         {
@@ -97,6 +112,23 @@ public sealed class LevelMeter : FrameworkElement
         {
             var rect = new Rect(i * (segWidth + gap), 1, segWidth, Math.Max(1, bounds.Height - 2));
             dc.DrawRoundedRectangle(i < lit ? litBrush : dimBrush, null, rect, 3, 3);
+        }
+    }
+
+    /// Вертикальные бары волны: история пиков по кольцу, как на моке Murmur.
+    private void RenderBars(DrawingContext dc, Rect bounds)
+    {
+        var litBrush = new SolidColorBrush(Color.FromRgb(45, 212, 191));  // #2DD4BF
+        var dimBrush = new SolidColorBrush(Color.FromRgb(24, 36, 38));    // #182426
+        double slot = bounds.Width / BarCount;
+        double barWidth = Math.Max(2, slot * 0.55);
+        for (int i = 0; i < BarCount; i++)
+        {
+            float v = _bars[(_barIndex + i) % BarCount];
+            double h = Math.Max(3, bounds.Height * Math.Clamp(v * 1.4f, 0f, 1f));
+            double x = i * slot + (slot - barWidth) / 2;
+            double y = (bounds.Height - h) / 2;
+            dc.DrawRoundedRectangle(v > 0.004f ? litBrush : dimBrush, null, new Rect(x, y, barWidth, h), 2, 2);
         }
     }
 }

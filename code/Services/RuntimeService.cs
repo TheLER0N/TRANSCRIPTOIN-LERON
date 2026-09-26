@@ -83,14 +83,12 @@ public sealed class RuntimeService
             var libType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeLibrary" && t.IsEnum);
             if (optionsType is null || libType is null) return false;
             var value = Enum.Parse(libType, enumName);
-
             var forced = optionsType.GetProperty("ForcedRuntimeLibrary", BindingFlags.Public | BindingFlags.Static);
             if (forced is not null && forced.PropertyType == libType)
             {
                 forced.SetValue(null, value);
                 return true;
             }
-
             var order = optionsType.GetProperty("RuntimeLibraryOrder", BindingFlags.Public | BindingFlags.Static);
             if (order is not null)
             {
@@ -171,7 +169,8 @@ public sealed class RuntimeService
         return names.Count > 0 ? string.Join(", ", names) : "GPU не определён";
     }
 
-    /// Наличие native-библиотек рантаймов рядом с exe / в runtimes/win-x64/native.
+    /// Наличие native-библиотек рантаймов: ищем рекурсивно по всей выходной папке,
+    /// т.к. NuGet-пакеты раскладывают dll в runtimes/win-x64/native, а не в корень.
     private static IReadOnlyList<string> DetectAvailable()
     {
         var list = new List<string> { "cpu" };
@@ -182,15 +181,17 @@ public sealed class RuntimeService
 
     private static bool ProbeNative(params string[] candidates)
     {
-        var roots = new[]
+        try
         {
-            AppContext.BaseDirectory,
-            Path.Combine(AppContext.BaseDirectory, "runtimes", "win-x64", "native")
-        };
-        foreach (var root in roots)
-        foreach (var name in candidates)
+            var root = new DirectoryInfo(AppContext.BaseDirectory);
+            foreach (var name in candidates)
+            {
+                if (root.GetFiles(name, SearchOption.AllDirectories).Length > 0) return true;
+            }
+        }
+        catch
         {
-            if (File.Exists(Path.Combine(root, name))) return true;
+            // Папка недоступна — считаем рантайм отсутствующим
         }
         return false;
     }

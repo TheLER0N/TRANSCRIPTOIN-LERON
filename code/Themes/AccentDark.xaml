@@ -187,7 +187,8 @@
             </Setter.Value>
         </Setter>
     </Style>
-    <!-- Пункт сайдбара -->
+    <!-- Пункт сайдбара. TargetType = ToggleButton: стиль валиден и для ToggleButton,
+         и для RadioButton (наследник), поэтому рассинхрон версий окна/темы больше не роняет старт. -->
     <Style TargetType="ToggleButton" x:Key="NavButton">
         <Setter Property="Foreground" Value="{StaticResource BrushMuted}"/>
         <Setter Property="FontSize" Value="14"/>

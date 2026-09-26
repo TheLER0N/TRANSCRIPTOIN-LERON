@@ -11,14 +11,49 @@ namespace Leron.Audio.Services;
 
 public sealed record ModelInfo(string Id, string DisplayName, string FileName, string Url, int ApproxSizeMb);
 
-/// Каталог моделей Whisper.cpp + загрузка с HuggingFace в папку models/ рядом с exe.
+/// Каталог моделей Whisper.cpp + загрузка с HuggingFace.
+/// Хранилище — %LocalAppData%\LERON-AUDIO\models: папка вне bin/Debug, поэтому
+/// clean-пересборки, publish и смена конфигурации больше не удаляют скачанные модели
+/// (фикс бага «модель исчезает после установки»).
 public sealed class ModelCatalogService
 {
     private const string BaseUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/";
     private const uint GgmlMagic = 0x67676d6cu; // "ggml" little-endian
     private static readonly Lazy<HttpClient> Http = new(() => new HttpClient { Timeout = Timeout.InfiniteTimeSpan });
 
-    public string ModelsDir { get; } = Path.Combine(AppContext.BaseDirectory, "models");
+    public string ModelsDir { get; }
+
+    /// Старое проблемное хранилище внутри build-output — только для миграции.
+    private string LegacyModelsDir { get; } = Path.Combine(AppContext.BaseDirectory, "models");
+
+    public ModelCatalogService()
+    {
+        ModelsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "LERON-AUDIO", "models");
+        try
+        {
+            Directory.CreateDirectory(ModelsDir);
+            MigrateLegacy();
+        }
+        catch
+        {
+            // Нет прав на LocalAppData — работаем как есть, загрузки упадут с понятной ошибкой
+        }
+    }
+
+    /// Переносит уже скачанные модели из старой папки bin/.../models в стабильную.
+    private void MigrateLegacy()
+    {
+        if (!Directory.Exists(LegacyModelsDir)) return;
+        foreach (var m in Catalog)
+        {
+            var from = Path.Combine(LegacyModelsDir, m.FileName);
+            var to = Path.Combine(ModelsDir, m.FileName);
+            if (!File.Exists(from) || File.Exists(to)) continue;
+            try { File.Move(from, to); } catch { }
+        }
+    }
 
     public static IReadOnlyList<ModelInfo> Catalog { get; } = BuildCatalog();
 
@@ -63,6 +98,7 @@ public sealed class ModelCatalogService
     public void Delete(ModelInfo info)
     {
         try { File.Delete(GetPath(info)); } catch { }
+        try { File.Delete(Path.Combine(LegacyModelsDir, info.FileName)); } catch { }
     }
 
     /// Скачивание с прогрессом (0..1) и отменой; битый файл не становится моделью.
