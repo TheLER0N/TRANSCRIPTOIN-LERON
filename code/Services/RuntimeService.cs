@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 
 namespace Leron.Audio.Services;
@@ -17,6 +18,7 @@ public enum RuntimeMode
 }
 
 /// Определение GPU и выбор бэкенда Whisper: Авто/CPU/Vulkan/CUDA.
+[SupportedOSPlatform("windows")]
 public sealed class RuntimeService
 {
     private const string VideoClassKey =
@@ -82,13 +84,16 @@ public sealed class RuntimeService
             var optionsType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeOptions");
             var libType = asm.GetTypes().FirstOrDefault(t => t.Name == "RuntimeLibrary" && t.IsEnum);
             if (optionsType is null || libType is null) return false;
+
             var value = Enum.Parse(libType, enumName);
+
             var forced = optionsType.GetProperty("ForcedRuntimeLibrary", BindingFlags.Public | BindingFlags.Static);
             if (forced is not null && forced.PropertyType == libType)
             {
                 forced.SetValue(null, value);
                 return true;
             }
+
             var order = optionsType.GetProperty("RuntimeLibraryOrder", BindingFlags.Public | BindingFlags.Static);
             if (order is not null)
             {
@@ -143,6 +148,7 @@ public sealed class RuntimeService
             }
         }
         catch { }
+
         if (vendors.Contains("NVIDIA")) return "NVIDIA";
         if (vendors.Contains("AMD")) return "AMD";
         if (vendors.Contains("Intel")) return "Intel";

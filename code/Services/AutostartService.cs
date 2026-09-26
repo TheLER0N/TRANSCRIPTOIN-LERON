@@ -1,10 +1,12 @@
 // code/Services/AutostartService.cs
 using System;
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 
 namespace Leron.Audio.Services;
 
 /// Автозапуск с Windows через ключ HKCU\...\Run (без планировщика).
+[SupportedOSPlatform("windows")]
 public sealed class AutostartService
 {
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
@@ -33,6 +35,7 @@ public sealed class AutostartService
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, true)
                             ?? Registry.CurrentUser.CreateSubKey(RunKey, true);
             if (key is null) return;
+
             if (enabled)
             {
                 var exe = Environment.ProcessPath;
