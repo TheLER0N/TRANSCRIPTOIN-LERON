@@ -1,3 +1,4 @@
+// code/Services/SettingsService.cs
 using System;
 using System.IO;
 using System.Text.Json;
@@ -26,6 +27,14 @@ public sealed class Settings
     public string Theme { get; set; } = "Dark";
     public int MicrophoneId { get; set; } = -1; // -1 = системный микрофон по умолчанию
     public string InitialPrompt { get; set; } = DefaultInitialPrompt;
+
+    // Устройство исполнения Whisper: auto / cpu / vulkan / cuda
+    public string RuntimeMode { get; set; } = "auto";
+    // Постобработка записи перед распознаванием
+    public bool NormalizeAudio { get; set; } = true;
+    public bool NoiseGate { get; set; } = false;
+    // Автозапуск с Windows (ключ HKCU Run)
+    public bool AutoStartWithWindows { get; set; } = false;
 }
 
 public sealed class SettingsService

@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 22:26:34
+  GENERATED      : 26.09.2026 22:34:25
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -599,7 +599,7 @@ SIZE: 526 bytes
 
 ------------------------------------------------
 FILE: code\App.xaml.cs
-SIZE: 4314 bytes
+SIZE: 4663 bytes
 ------------------------------------------------
 // code/App.xaml.cs
 using System;
@@ -687,6 +687,11 @@ public partial class App : Application
         services.AddSingleton<IWhisperService, WhisperNetService>();
         services.AddSingleton<IHotkeyService, NHotkeyService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        // Продуктовый слой (Шаг 2): история, каталог моделей, рантаймы, автозапуск
+        services.AddSingleton<HistoryService>();
+        services.AddSingleton<ModelCatalogService>();
+        services.AddSingleton<RuntimeService>();
+        services.AddSingleton<AutostartService>();
         services.AddSingleton<MainViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindow>();
@@ -2102,8 +2107,9 @@ public sealed class RuntimeService
 
 ------------------------------------------------
 FILE: code\Services\SettingsService.cs
-SIZE: 2717 bytes
+SIZE: 3210 bytes
 ------------------------------------------------
+// code/Services/SettingsService.cs
 using System;
 using System.IO;
 using System.Text.Json;
@@ -2132,6 +2138,14 @@ public sealed class Settings
     public string Theme { get; set; } = "Dark";
     public int MicrophoneId { get; set; } = -1; // -1 = системный микрофон по умолчанию
     public string InitialPrompt { get; set; } = DefaultInitialPrompt;
+
+    // Устройство исполнения Whisper: auto / cpu / vulkan / cuda
+    public string RuntimeMode { get; set; } = "auto";
+    // Постобработка записи перед распознаванием
+    public bool NormalizeAudio { get; set; } = true;
+    public bool NoiseGate { get; set; } = false;
+    // Автозапуск с Windows (ключ HKCU Run)
+    public bool AutoStartWithWindows { get; set; } = false;
 }
 
 public sealed class SettingsService
@@ -3041,12 +3055,16 @@ public sealed partial class MainViewModel : ObservableObject
 
 ------------------------------------------------
 FILE: code\ViewModels\SettingsViewModel.cs
-SIZE: 5414 bytes
+SIZE: 13470 bytes
 ------------------------------------------------
+// code/ViewModels/SettingsViewModel.cs
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -3058,57 +3076,236 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly SettingsService _settings;
     private readonly IHotkeyService _hotkey;
+    private readonly ModelCatalogService _catalog;
+    private readonly RuntimeService _runtime;
+    private readonly HistoryService _history;
+    private readonly AutostartService _autostart;
+    private CancellationTokenSource? _downloadCts;
 
+    // Клавиши и запуск
     [ObservableProperty] private string _hotkeyText = "F4";
     [ObservableProperty] private bool _autoPaste = true;
     [ObservableProperty] private bool _startMinimized;
-    [ObservableProperty] private string _modelPath = string.Empty;
+    [ObservableProperty] private bool _autoStartWithWindows;
+
+    // Транскрипция: язык и модель
+    [ObservableProperty] private IReadOnlyList<string> _languageNames = new[] { "Авто (auto)", "Русский (ru)", "Английский (en)" };
+    [ObservableProperty] private int _selectedLanguageIndex;
+    [ObservableProperty] private IReadOnlyList<string> _modelNames = Array.Empty<string>();
+    [ObservableProperty] private int _selectedModelIndex = -1;
+    [ObservableProperty] private bool _isDownloading;
+    [ObservableProperty] private double _downloadProgress;
     [ObservableProperty] private string _modelStatusText = string.Empty;
     [ObservableProperty] private bool _modelStatusIsError;
-    [ObservableProperty] private string _statusMessage = string.Empty;
+
+    // Рантайм (GPU/CPU)
+    [ObservableProperty] private IReadOnlyList<string> _runtimeNames = new[] { "Авто", "CPU", "Vulkan", "CUDA" };
+    [ObservableProperty] private int _selectedRuntimeIndex;
+    [ObservableProperty] private string _runtimeDetectedText = string.Empty;
+
+    // Аудио
     [ObservableProperty] private IReadOnlyList<string> _microphoneNames = Array.Empty<string>();
     [ObservableProperty] private int _selectedMicrophoneIndex;
+    [ObservableProperty] private bool _normalizeAudio = true;
+    [ObservableProperty] private bool _noiseGate;
+
+    // Хранилище
+    [ObservableProperty] private string _modelsDirText = string.Empty;
+    [ObservableProperty] private string _historyFileText = string.Empty;
+    [ObservableProperty] private string _logDirText = string.Empty;
+    [ObservableProperty] private string _historyFromText = string.Empty;
+    [ObservableProperty] private string _historyToText = string.Empty;
+
+    // Словарь
     [ObservableProperty] private string _initialPrompt = string.Empty;
 
-    public SettingsViewModel(SettingsService settings, IHotkeyService hotkey)
+    [ObservableProperty] private string _statusMessage = string.Empty;
+
+    public SettingsViewModel(
+        SettingsService settings,
+        IHotkeyService hotkey,
+        ModelCatalogService catalog,
+        RuntimeService runtime,
+        HistoryService history,
+        AutostartService autostart)
     {
         _settings = settings;
         _hotkey = hotkey;
+        _catalog = catalog;
+        _runtime = runtime;
+        _history = history;
+        _autostart = autostart;
         Reload();
     }
 
     public void Reload()
     {
-        HotkeyText = _settings.Current.RecordHotkey;
-        AutoPaste = _settings.Current.AutoPaste;
-        StartMinimized = _settings.Current.StartMinimized;
-        ModelPath = _settings.Current.ModelPath ?? string.Empty;
-        InitialPrompt = _settings.Current.InitialPrompt ?? string.Empty;
+        var s = _settings.Current;
+        HotkeyText = s.RecordHotkey;
+        AutoPaste = s.AutoPaste;
+        StartMinimized = s.StartMinimized;
+        AutoStartWithWindows = _autostart.IsEnabled;
+        NormalizeAudio = s.NormalizeAudio;
+        NoiseGate = s.NoiseGate;
+        SelectedLanguageIndex = s.Language switch { "ru" => 1, "en" => 2, _ => 0 };
+        SelectedRuntimeIndex = RuntimeService.ParseMode(s.RuntimeMode) switch
+        {
+            RuntimeMode.Cpu => 1,
+            RuntimeMode.Vulkan => 2,
+            RuntimeMode.Cuda => 3,
+            _ => 0
+        };
         var names = new List<string> { "Системный микрофон по умолчанию" };
         names.AddRange(NAudioCaptureService.EnumerateMicrophones());
         MicrophoneNames = names;
-        SelectedMicrophoneIndex = Math.Clamp(_settings.Current.MicrophoneId + 1, 0, names.Count - 1);
-        ValidateModel();
+        SelectedMicrophoneIndex = Math.Clamp(s.MicrophoneId + 1, 0, names.Count - 1);
+        UpdateRuntimeInfo();
+        RefreshModelList();
+        InitialPrompt = s.InitialPrompt ?? string.Empty;
+        ModelsDirText = _catalog.ModelsDir;
+        HistoryFileText = _history.FilePath;
+        LogDirText = Path.Combine(AppContext.BaseDirectory, "temp");
         StatusMessage = string.Empty;
     }
 
-    partial void OnModelPathChanged(string value) => ValidateModel();
-
-    private void ValidateModel()
+    private void UpdateRuntimeInfo()
     {
-        var path = string.IsNullOrWhiteSpace(ModelPath) ? ModelLocator.FindModel() : ModelPath.Trim();
-        var found = !string.IsNullOrWhiteSpace(path) && File.Exists(path);
-        ModelStatusIsError = !found;
-        ModelStatusText = found
-            ? $"Модель найдена: {path}"
-            : "Модель не найдена по указанному пути.";
+        RuntimeDetectedText =
+            $"GPU: {_runtime.GpuDescription} | вендор: {_runtime.GpuVendor} | " +
+            $"доступны рантаймы: {string.Join(", ", _runtime.AvailableRuntimes)} | " +
+            $"фактический бэкенд: {_runtime.ResolveBackend(_settings.Current.RuntimeMode)}";
+    }
+
+    private void RefreshModelList()
+    {
+        var list = new List<string>();
+        int selected = -1;
+        var currentPath = _settings.Current.ModelPath;
+        for (int i = 0; i < ModelCatalogService.Catalog.Count; i++)
+        {
+            var m = ModelCatalogService.Catalog[i];
+            bool downloaded = _catalog.IsDownloaded(m);
+            list.Add($"{(downloaded ? "✓ " : "   ")}{m.DisplayName} (~{m.ApproxSizeMb} МБ)");
+            if (currentPath is not null &&
+                string.Equals(
+                    Path.GetFullPath(currentPath),
+                    Path.GetFullPath(_catalog.GetPath(m)),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                selected = i;
+            }
+        }
+        ModelNames = list;
+        SelectedModelIndex = selected;
+    }
+
+    partial void OnSelectedModelIndexChanged(int value) => UpdateModelStatus();
+
+    private void UpdateModelStatus()
+    {
+        if (SelectedModelIndex < 0 || SelectedModelIndex >= ModelCatalogService.Catalog.Count)
+        {
+            ModelStatusIsError = false;
+            ModelStatusText = "Модель из каталога не выбрана: работает ручной путь или автопоиск в корне проекта.";
+            return;
+        }
+        var m = ModelCatalogService.Catalog[SelectedModelIndex];
+        bool downloaded = _catalog.IsDownloaded(m);
+        ModelStatusIsError = !downloaded;
+        ModelStatusText = downloaded
+            ? $"Скачана: {_catalog.GetPath(m)}"
+            : $"Не скачана. Нажми «Скачать» (~{m.ApproxSizeMb} МБ), затем «Сохранить».";
     }
 
     [RelayCommand]
-    private void CheckModel()
+    private async Task DownloadSelectedModel()
     {
-        ValidateModel();
-        StatusMessage = ModelStatusText;
+        if (IsDownloading) return;
+        if (SelectedModelIndex < 0 || SelectedModelIndex >= ModelCatalogService.Catalog.Count)
+        {
+            StatusMessage = "Сначала выбери модель из списка.";
+            return;
+        }
+        var model = ModelCatalogService.Catalog[SelectedModelIndex];
+        IsDownloading = true;
+        DownloadProgress = 0;
+        _downloadCts = new CancellationTokenSource();
+        var progress = new Progress<double>(p => DownloadProgress = p);
+        try
+        {
+            await _catalog.DownloadAsync(model, progress, _downloadCts.Token);
+            StatusMessage = $"Модель {model.Id} скачана и проверена (magic ggml).";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "Загрузка отменена, временный файл удалён.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Ошибка загрузки: {ex.Message}";
+        }
+        finally
+        {
+            IsDownloading = false;
+            DownloadProgress = 0;
+            _downloadCts.Dispose();
+            _downloadCts = null;
+            RefreshModelList();
+        }
+    }
+
+    [RelayCommand]
+    private void CancelDownload() => _downloadCts?.Cancel();
+
+    [RelayCommand]
+    private void DeleteSelectedModel()
+    {
+        if (SelectedModelIndex < 0 || SelectedModelIndex >= ModelCatalogService.Catalog.Count) return;
+        var model = ModelCatalogService.Catalog[SelectedModelIndex];
+        _catalog.Delete(model);
+        RefreshModelList();
+        StatusMessage = $"Модель {model.Id} удалена из папки models.";
+    }
+
+    [RelayCommand]
+    private void OpenModelsFolder() => OpenFolder(_catalog.ModelsDir);
+
+    [RelayCommand]
+    private void OpenHistoryFolder() =>
+        OpenFolder(Path.GetDirectoryName(_history.FilePath) ?? AppContext.BaseDirectory);
+
+    private static void OpenFolder(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(path);
+            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+        }
+        catch
+        {
+            // Проводник не открылся — не критично
+        }
+    }
+
+    [RelayCommand]
+    private void ClearHistoryAll()
+    {
+        _history.ClearAll();
+        StatusMessage = "История диктовок очищена полностью.";
+    }
+
+    [RelayCommand]
+    private void ClearHistoryRange()
+    {
+        bool okFrom = DateTime.TryParse(HistoryFromText, out var from);
+        bool okTo = DateTime.TryParse(HistoryToText, out var to);
+        if (!okFrom || !okTo)
+        {
+            StatusMessage = "Диапазон: укажи обе даты в формате дд.мм.гггг.";
+            return;
+        }
+        _history.ClearRange(from, to.AddDays(1).AddSeconds(-1));
+        StatusMessage = $"История с {from:dd.MM.yyyy} по {to:dd.MM.yyyy} удалена.";
     }
 
     [RelayCommand]
@@ -3116,17 +3313,23 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         var sb = new StringBuilder();
         sb.Append("Модель: ");
-        var model = string.IsNullOrWhiteSpace(ModelPath) ? ModelLocator.FindModel() : ModelPath.Trim();
-        sb.Append(!string.IsNullOrWhiteSpace(model) && File.Exists(model)
-            ? Path.GetFileName(model)
-            : "НЕ НАЙДЕНА");
+        var model = ResolveCurrentModel();
+        sb.Append(model is not null ? Path.GetFileName(model) : "НЕ НАЙДЕНА");
+        sb.Append(" | Бэкенд: ").Append(_runtime.ResolveBackend(_settings.Current.RuntimeMode));
+        sb.Append(" | GPU: ").Append(_runtime.GpuVendor);
         sb.Append(" | Микрофонов: ").Append(Math.Max(0, MicrophoneNames.Count - 1));
         sb.Append(" | Выбран: ").Append(SelectedMicrophoneIndex == 0
             ? "системный"
             : MicrophoneNames[SelectedMicrophoneIndex]);
         sb.Append(" | Потоков: ").Append(Math.Max(2, Environment.ProcessorCount / 2));
-        sb.Append(" | GPU-рантайм: не подключён (CPU)");
         StatusMessage = sb.ToString();
+    }
+
+    private string? ResolveCurrentModel()
+    {
+        var configured = _settings.Current.ModelPath;
+        if (!string.IsNullOrWhiteSpace(configured) && File.Exists(configured)) return configured;
+        return ModelLocator.FindModel();
     }
 
     [RelayCommand]
@@ -3144,7 +3347,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             case Key.RWin:
                 return;
         }
-
         var parts = new List<string>();
         var mods = Keyboard.Modifiers;
         if (mods.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
@@ -3168,31 +3370,41 @@ public sealed partial class SettingsViewModel : ObservableObject
             StatusMessage = $"Хоткей не применён: {ex.Message}";
             return;
         }
-
-        _settings.Current.RecordHotkey = HotkeyText;
-        _settings.Current.AutoPaste = AutoPaste;
-        _settings.Current.StartMinimized = StartMinimized;
-        _settings.Current.ModelPath = string.IsNullOrWhiteSpace(ModelPath) ? null : ModelPath.Trim();
-        _settings.Current.MicrophoneId = SelectedMicrophoneIndex - 1;
-        _settings.Current.InitialPrompt = string.IsNullOrWhiteSpace(InitialPrompt)
+        var s = _settings.Current;
+        s.RecordHotkey = HotkeyText;
+        s.AutoPaste = AutoPaste;
+        s.StartMinimized = StartMinimized;
+        s.NormalizeAudio = NormalizeAudio;
+        s.NoiseGate = NoiseGate;
+        s.Language = SelectedLanguageIndex switch { 1 => "ru", 2 => "en", _ => "auto" };
+        s.MicrophoneId = SelectedMicrophoneIndex - 1;
+        s.RuntimeMode = SelectedRuntimeIndex switch { 1 => "cpu", 2 => "vulkan", 3 => "cuda", _ => "auto" };
+        if (SelectedModelIndex >= 0 && SelectedModelIndex < ModelCatalogService.Catalog.Count)
+        {
+            var model = ModelCatalogService.Catalog[SelectedModelIndex];
+            if (_catalog.IsDownloaded(model)) s.ModelPath = _catalog.GetPath(model);
+        }
+        s.InitialPrompt = string.IsNullOrWhiteSpace(InitialPrompt)
             ? Settings.DefaultInitialPrompt
             : InitialPrompt.Trim();
         _settings.Save();
-        ValidateModel();
-        StatusMessage = "Сохранено. Хоткей, микрофон и словарь применены без перезапуска.";
+        _autostart.SetEnabled(AutoStartWithWindows);
+        UpdateRuntimeInfo();
+        UpdateModelStatus();
+        StatusMessage = "Сохранено. Модель, рантайм, микрофон, автозапуск и словарь применены без перезапуска.";
     }
 }
 
 ------------------------------------------------
 FILE: code\Windows\SettingsWindow.xaml
-SIZE: 6536 bytes
+SIZE: 14468 bytes
 ------------------------------------------------
 <!-- code/Windows/SettingsWindow.xaml -->
 <Window x:Class="Leron.Audio.Windows.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Настройки"
-        Width="460" Height="560"
+        Width="760" Height="580"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BrushBg}"
         Style="{StaticResource BaseWindow}">
@@ -3204,15 +3416,112 @@ SIZE: 6536 bytes
             <Setter Property="FontSize" Value="13"/>
         </Style>
         <Style x:Key="ActionButton" TargetType="Button" BasedOn="{StaticResource FlatButton}"/>
+        <Style x:Key="PathBox" TargetType="TextBox" BasedOn="{StaticResource DarkBox}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushMuted}"/>
+        </Style>
     </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TabControl>
-            <TabItem Header="Горячие клавиши">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="←"
+                    Click="OnBackClick"
+                    Style="{StaticResource FlatButton}"
+                    Width="40"
+                    Margin="0,0,10,0"/>
+            <TextBlock Text="Настройки"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+        <TabControl x:Name="Tabs" Grid.Row="1">
+            <TabItem Header="Общие">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="ТРАНСКРИПЦИЯ"/>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,6" Text="Язык распознавания"/>
+                        <ComboBox ItemsSource="{Binding LanguageNames}"
+                                  SelectedIndex="{Binding SelectedLanguageIndex}"/>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,12,0,6"
+                                   Text="Модель Whisper (скачанные отмечены галкой)"/>
+                        <ComboBox ItemsSource="{Binding ModelNames}"
+                                  SelectedIndex="{Binding SelectedModelIndex}"/>
+                        <TextBlock Text="{Binding ModelStatusText}" TextWrapping="Wrap" Margin="0,6,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ModelStatusIsError}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource BrushDanger}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ProgressBar Value="{Binding DownloadProgress, Mode=OneWay}"
+                                     Minimum="0" Maximum="1" Height="8" Margin="0,8,0,8"
+                                     Background="{StaticResource BrushPanel}"
+                                     Foreground="{StaticResource BrushAccent}"
+                                     BorderBrush="{StaticResource BrushBorder}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="Скачать"
+                                    Command="{Binding DownloadSelectedModelCommand}"
+                                    Style="{StaticResource AccentButton}"
+                                    Margin="0,0,8,0"/>
+                            <Button Content="Отмена"
+                                    Command="{Binding CancelDownloadCommand}"
+                                    Style="{StaticResource ActionButton}"
+                                    Margin="0,0,8,0"/>
+                            <Button Content="Удалить"
+                                    Command="{Binding DeleteSelectedModelCommand}"
+                                    Style="{StaticResource DangerButton}"
+                                    Margin="0,0,8,0"/>
+                            <Button Content="Диагностика"
+                                    Command="{Binding RunDiagnosticsCommand}"
+                                    Style="{StaticResource ActionButton}"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6"
+                                   Text="Устройство исполнения (на чём работает ИИ)"/>
+                        <ComboBox ItemsSource="{Binding RuntimeNames}"
+                                  SelectedIndex="{Binding SelectedRuntimeIndex}"/>
+                        <TextBlock Style="{StaticResource ChipMutedText}" Margin="0,6,0,12"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding RuntimeDetectedText}"/>
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="ЗАПУСК"/>
+                        <CheckBox Content="Запускать вместе с Windows"
+                                  IsChecked="{Binding AutoStartWithWindows}"
+                                  Margin="0,6,0,6"/>
+                        <CheckBox Content="Запускать свёрнутым"
+                                  IsChecked="{Binding StartMinimized}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Аудио">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="МИКРОФОН"/>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,6"
+                                   Text="Устройство записи: если волна не двигается при голосе — выбери другое"/>
+                        <ComboBox ItemsSource="{Binding MicrophoneNames}"
+                                  SelectedIndex="{Binding SelectedMicrophoneIndex}"/>
+                        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="ОБРАБОТКА ЗАПИСИ"/>
+                        <CheckBox Content="Нормализовать громкость к -1 dBFS (тихие диктовки вытягивает, громкие прижимает)"
+                                  IsChecked="{Binding NormalizeAudio}"
+                                  Margin="0,8,0,6"/>
+                        <CheckBox Content="Шумодав: гейт по шумовому полу + high-pass 80 Гц (срезует гул и дыхание)"
+                                  IsChecked="{Binding NoiseGate}"
+                                  Margin="0,0,0,8"/>
+                        <TextBlock Style="{StaticResource FieldLabel}"
+                                   Text="Применяется к записи перед распознаванием сразу после «Сохранить», перезапуск не нужен."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Клавиши">
                 <StackPanel Margin="12">
                     <TextBlock Style="{StaticResource FieldLabel}"
                                Text="Хоткей записи (PTT): кликни в поле и нажми сочетание клавиш"/>
@@ -3220,89 +3529,90 @@ SIZE: 6536 bytes
                              Style="{StaticResource DarkBox}"
                              Text="{Binding HotkeyText, Mode=OneWay}"
                              IsReadOnly="True"/>
-                </StackPanel>
-            </TabItem>
-            <TabItem Header="Микрофон">
-                <StackPanel Margin="12">
-                    <TextBlock Style="{StaticResource FieldLabel}"
-                               Text="Устройство записи: если VU-метр не двигается при голосе — выбери другой микрофон"/>
-                    <ComboBox ItemsSource="{Binding MicrophoneNames}"
-                              SelectedIndex="{Binding SelectedMicrophoneIndex}"/>
-                    <TextBlock Style="{StaticResource FieldLabel}"
-                               Margin="0,10,0,0"
-                               Text="Применяется сразу после «Сохранить», перезапуск не нужен."/>
-                </StackPanel>
-            </TabItem>
-            <TabItem Header="Вставка">
-                <StackPanel Margin="12">
                     <CheckBox Content="Автоматически вставлять текст в активное окно (Ctrl+V)"
                               IsChecked="{Binding AutoPaste}"
-                              Margin="0,4,0,8"/>
+                              Margin="0,12,0,8"/>
                     <TextBlock Style="{StaticResource FieldLabel}"
-                               Text="Если выключено — текст только копируется в буфер обмена."/>
+                               Text="Если выключено — текст только копируется в буфер обмена. Ctrl+V никогда не отправляется в окно самого LERON-AUDIO."/>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Модель">
+            <TabItem Header="Хранилище">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12">
+                        <TextBlock Style="{StaticResource SectionHeader}" Text="ПУТИ"/>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,6" Text="Папка моделей"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Style="{StaticResource PathBox}" Text="{Binding ModelsDirText, Mode=OneWay}"/>
+                            <Button Grid.Column="1" Content="Открыть"
+                                    Command="{Binding OpenModelsFolderCommand}"
+                                    Style="{StaticResource ActionButton}" Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6" Text="Файл истории диктовок"/>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Style="{StaticResource PathBox}" Text="{Binding HistoryFileText, Mode=OneWay}"/>
+                            <Button Grid.Column="1" Content="Открыть"
+                                    Command="{Binding OpenHistoryFolderCommand}"
+                                    Style="{StaticResource ActionButton}" Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6" Text="Папка логов (для диагностики)"/>
+                        <TextBox Style="{StaticResource PathBox}" Text="{Binding LogDirText, Mode=OneWay}"/>
+                        <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="ИСТОРИЯ ДИКТОВОК"/>
+                        <Button Content="Очистить всю историю"
+                                Command="{Binding ClearHistoryAllCommand}"
+                                Style="{StaticResource DangerButton}"
+                                HorizontalAlignment="Left"
+                                Margin="0,8,0,12"/>
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Удалить диапазон (дд.мм.гггг):"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox Style="{StaticResource DarkBox}" Width="110"
+                                     Text="{Binding HistoryFromText, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text=" — " VerticalAlignment="Center" Margin="6,0"/>
+                            <TextBox Style="{StaticResource DarkBox}" Width="110"
+                                     Text="{Binding HistoryToText, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Content="Удалить диапазон"
+                                    Command="{Binding ClearHistoryRangeCommand}"
+                                    Style="{StaticResource ActionButton}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Словарь">
                 <StackPanel Margin="12">
                     <TextBlock Style="{StaticResource FieldLabel}"
-                               Text="Путь к ggml-*.bin (пусто = автопоиск в корне проекта)"/>
+                               Text="Словарь-подсказка (термины): учит Whisper писать EN-слова латиницей внутри русской речи. Применяется без перезапуска."/>
                     <TextBox Style="{StaticResource DarkBox}"
-                             Text="{Binding ModelPath, UpdateSourceTrigger=PropertyChanged}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,8">
-                        <Button Content="Проверить"
-                                Command="{Binding CheckModelCommand}"
-                                Style="{StaticResource ActionButton}"
-                                Margin="0,0,8,0"/>
-                        <Button Content="Диагностика"
-                                Command="{Binding RunDiagnosticsCommand}"
-                                Style="{StaticResource ActionButton}"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding ModelStatusText}" TextWrapping="Wrap">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{StaticResource BrushText}"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ModelStatusIsError}" Value="True">
-                                        <Setter Property="Foreground" Value="#FF5555"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock Style="{StaticResource FieldLabel}"
-                               Margin="0,12,0,6"
-                               Text="Словарь-подсказка (термины): учит Whisper писать EN-слова латиницей внутри русской речи"/>
-                    <TextBox Style="{StaticResource DarkBox}"
-                             Height="90"
+                             Height="260"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto"
                              Text="{Binding InitialPrompt, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Запуск">
-                <StackPanel Margin="12">
-                    <CheckBox Content="Запускать свёрнутым"
-                              IsChecked="{Binding StartMinimized}"/>
-                </StackPanel>
-            </TabItem>
         </TabControl>
-        <TextBlock Grid.Row="1"
+        <TextBlock Grid.Row="2"
                    Text="{Binding StatusMessage}"
                    Foreground="{StaticResource BrushMuted}"
                    TextWrapping="Wrap"
                    Margin="0,8,0,8"/>
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Сохранить"
                     Command="{Binding SaveCommand}"
-                    Style="{StaticResource ActionButton}"/>
+                    Style="{StaticResource AccentButton}"/>
         </StackPanel>
     </Grid>
 </Window>
 
 ------------------------------------------------
 FILE: code\Windows\SettingsWindow.xaml.cs
-SIZE: 1229 bytes
+SIZE: 1611 bytes
 ------------------------------------------------
 // code/Windows/SettingsWindow.xaml.cs
 using System;
@@ -3315,11 +3625,14 @@ namespace Leron.Audio.Windows;
 
 public partial class SettingsWindow : Window
 {
-    public SettingsWindow(SettingsViewModel viewModel)
+    /// selectedTab — индекс вкладки для шортката из сайдбара главного окна
+    /// (0=Общие, 1=Аудио, 2=Клавиши, 3=Хранилище, 4=Словарь).
+    public SettingsWindow(SettingsViewModel viewModel, int selectedTab = 0)
     {
         InitializeComponent();
         DataContext = viewModel;
         HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
+        Tabs.SelectedIndex = Math.Clamp(selectedTab, 0, 4);
         TryLoadIcon();
     }
 
@@ -3342,6 +3655,8 @@ public partial class SettingsWindow : Window
         if (DataContext is SettingsViewModel vm)
             vm.CaptureHotkeyCommand.Execute(e);
     }
+
+    private void OnBackClick(object sender, RoutedEventArgs e) => Close();
 }
 
 ------------------------------------------------

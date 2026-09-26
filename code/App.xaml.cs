@@ -84,6 +84,11 @@ public partial class App : Application
         services.AddSingleton<IWhisperService, WhisperNetService>();
         services.AddSingleton<IHotkeyService, NHotkeyService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        // Продуктовый слой (Шаг 2): история, каталог моделей, рантаймы, автозапуск
+        services.AddSingleton<HistoryService>();
+        services.AddSingleton<ModelCatalogService>();
+        services.AddSingleton<RuntimeService>();
+        services.AddSingleton<AutostartService>();
         services.AddSingleton<MainViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainWindow>();

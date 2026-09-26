@@ -9,11 +9,14 @@ namespace Leron.Audio.Windows;
 
 public partial class SettingsWindow : Window
 {
-    public SettingsWindow(SettingsViewModel viewModel)
+    /// selectedTab — индекс вкладки для шортката из сайдбара главного окна
+    /// (0=Общие, 1=Аудио, 2=Клавиши, 3=Хранилище, 4=Словарь).
+    public SettingsWindow(SettingsViewModel viewModel, int selectedTab = 0)
     {
         InitializeComponent();
         DataContext = viewModel;
         HotkeyBox.PreviewKeyDown += OnHotkeyCapture;
+        Tabs.SelectedIndex = Math.Clamp(selectedTab, 0, 4);
         TryLoadIcon();
     }
 
@@ -36,4 +39,6 @@ public partial class SettingsWindow : Window
         if (DataContext is SettingsViewModel vm)
             vm.CaptureHotkeyCommand.Execute(e);
     }
+
+    private void OnBackClick(object sender, RoutedEventArgs e) => Close();
 }
