@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 27.09.2026 01:13:54
+  GENERATED      : 27.09.2026 01:34:21
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -989,7 +989,7 @@ SIZE: 2145 bytes
 
 ------------------------------------------------
 FILE: code\MainWindow.xaml
-SIZE: 14864 bytes
+SIZE: 15323 bytes
 ------------------------------------------------
 <!-- code/MainWindow.xaml -->
 <Window x:Class="Leron.Audio.MainWindow"
@@ -1066,7 +1066,7 @@ MouseLeftButtonDown="OnTitleBarMouseDown">
 <RadioButton x:Name="NavRecord" Style="{StaticResource NavButton}" GroupName="Nav" IsChecked="True" Checked="NavRecord_Checked" Margin="0,0,0,4">
 <StackPanel Orientation="Horizontal">
 <Viewbox Width="16" Height="16" Margin="0,0,10,0">
-<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M12,3 C10.34,3 9,4.34 9,6 L9,12 C9,13.66 10.34,15 12,15 C13.66,15 15,13.66 15,12 L15,6 C15,4.34 13.66,3 12,3 Z M5,12 A7,7 0 0 0 19,12 L17,12 A5,5 0 0 1 7,12 Z M11,19 L13,19 L13,21 L11,21 Z"/>
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
 </Viewbox>
 <TextBlock Text="Запись" VerticalAlignment="Center"/>
 </StackPanel>
@@ -1137,9 +1137,16 @@ Margin="0,0,0,14">
 </Style.Triggers>
 </Style>
 </Button.Style>
-<Viewbox Width="56" Height="56">
-<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-Data="M12,3 C10.34,3 9,4.34 9,6 L9,12 C9,13.66 10.34,15 12,15 C13.66,15 15,13.66 15,12 L15,6 C15,4.34 13.66,3 12,3 Z M5,12 A7,7 0 0 0 19,12 L17,12 A5,5 0 0 1 7,12 Z M11,19 L13,19 L13,21 L11,21 Z"/>
+<!-- МИКРОФОН ПО ЦЕНТРУ: квадратный icon-box 24x24 внутри Viewbox даёт
+симметричный uniform-масштаб; Canvas.Top=0.5 компенсирует смещение
+геометрии (центр масс 11.5 -> 12). Высота глифа прежняя: 71*19/24 ≈ 56. -->
+<Viewbox Width="71" Height="71" Stretch="Uniform"
+HorizontalAlignment="Center" VerticalAlignment="Center">
+<Canvas Width="24" Height="24">
+<Path Canvas.Top="0.5"
+Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
+</Canvas>
 </Viewbox>
 </Button>
 <TextBlock Text="{Binding RecordHint}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
@@ -4405,7 +4412,7 @@ StatusMessage = "Сохранено. Модель, рантайм, микроф�
 
 ------------------------------------------------
 FILE: code\Windows\RecordingOverlay.xaml
-SIZE: 2698 bytes
+SIZE: 2690 bytes
 ------------------------------------------------
 <Window x:Class="Leron.Audio.Windows.RecordingOverlay"
 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -4436,7 +4443,7 @@ Padding="18,12">
 <StackPanel x:Name="StateRecording" Orientation="Horizontal" VerticalAlignment="Center">
 <Viewbox Width="22" Height="22" Margin="0,0,12,0">
 <Path Fill="{StaticResource BrushAccent}"
-Data="M12,3 C10.34,3 9,4.34 9,6 L9,12 C9,13.66 10.34,15 12,15 C13.66,15 15,13.66 15,12 L15,6 C15,4.34 13.66,3 12,3 Z M5,12 A7,7 0 0 0 19,12 L17,12 A5,5 0 0 1 7,12 Z M11,19 L13,19 L13,21 L11,21 Z"/>
+Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
 </Viewbox>
 <controls:LevelMeter x:Name="OverlayBars" Width="250" Height="36" VerticalBars="True" Margin="0,0,14,0"/>
 <TextBlock x:Name="TimerText" Text="00:00" FontFamily="Consolas" FontSize="18"
@@ -4453,7 +4460,7 @@ Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
 <Viewbox Width="22" Height="22" Margin="0,0,12,0">
 <Grid>
 <Path Fill="{StaticResource BrushDanger}"
-Data="M12,3 C10.34,3 9,4.34 9,6 L9,12 C9,13.66 10.34,15 12,15 C13.66,15 15,13.66 15,12 L15,6 C15,4.34 13.66,3 12,3 Z M5,12 A7,7 0 0 0 19,12 L17,12 A5,5 0 0 1 7,12 Z M11,19 L13,19 L13,21 L11,21 Z"/>
+Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
 <Path Stroke="{StaticResource BrushDanger}" StrokeThickness="2.4" Data="M4,4 L20,20"/>
 </Grid>
 </Viewbox>
