@@ -33,62 +33,54 @@ license: MIT
 
 ### 2. Заметки к задаче [ЗАМОРОЖЕННЫЙ БЛОК]
 === ПЛАН ===
-
 Шаг 1: Монохромная тёмная тема (дизайн-система вместо разноцветных акцентов)
 Файлы:
-- (новый файл) `code/Themes/MonoDark.xaml` — ResourceDictionary: серая палитра (фон #0B0B0D, панели #16161A, границы #2A2A30, текст #E8E8E8, приглушённый #9A9AA0), кисти и базовые стили Button/TextBox/CheckBox/ComboBox/TabItem/ScrollViewer.
-- `code/App.xaml` — подключить MonoDark.xaml в Application.Resources, чтобы обе окна тянули один стиль.
-- `code/MainWindow.xaml` — убрать фиолетовый #6C5CE7 и красный #E74C3C, перевести PTT-кнопку, панели и поле транскрипта на серую палитру (запись = инверсия белый/чёрный), выровнять отступы и типографику.
-- `code/Windows/SettingsWindow.xaml` — те же серые стили для вкладок, полей и кнопок вместо фиолетовых.
-- `code/Services/LevelMeter.cs` — монохромная заливка VU-метра (тёмно-серый → белый), без цветного градиента.
+(новый файл) code/Themes/MonoDark.xaml — ResourceDictionary: серая палитра (фон #0B0B0D, панели #16161A, границы #2A2A30, текст #E8E8E8, приглушённый #9A9AA0), кисти и базовые стили Button/TextBox/CheckBox/ComboBox/TabItem/ScrollViewer.
+code/App.xaml — подключить MonoDark.xaml в Application.Resources, чтобы обе окна тянули один стиль.
+code/MainWindow.xaml — убрать фиолетовый #6C5CE7 и красный #E74C3C, перевести PTT-кнопку, панели и поле транскрипта на серую палитру (запись = инверсия белый/чёрный), выровнять отступы и типографику.
+code/Windows/SettingsWindow.xaml — те же серые стили для вкладок, полей и кнопок вместо фиолетовых.
+code/Services/LevelMeter.cs — монохромная заливка VU-метра (тёмно-серый → белый), без цветного градиента.
 Критерий готовности: в UI не осталось цветных акцентов (только чёрный/белый/серый), главное окно и настройки используют одну палитру из MonoDark.xaml.
-
 Шаг 2: Профессиональный хром окон: тёмные тайтл-бары и иконка приложения
 Файлы:
-- (новый файл) `code/Assets/icon.ico` — монохромная иконка (микрофон, 32/64/128 px, чёрно-белая).
-- `code/Leron.Audio.csproj` — ApplicationIcon = Assets/icon.ico.
-- `code/App.xaml.cs` — глобально включать тёмный режим тайтл-бара DWM (DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE) через class-callback на Window.LoadedEvent для всех окон, включая SettingsWindow.
-- `code/MainWindow.xaml` — Icon = иконка приложения в заголовке и таскбаре.
-- `code/Windows/SettingsWindow.xaml` — та же иконка в заголовке.
+(новый файл) code/Assets/icon.ico — монохромная иконка (микрофон, 32/64/128 px, чёрно-белая).
+code/Leron.Audio.csproj — ApplicationIcon = Assets/icon.ico.
+code/App.xaml.cs — глобально включать тёмный режим тайтл-бара DWM (DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE) через class-callback на Window.LoadedEvent для всех окон, включая SettingsWindow.
+code/MainWindow.xaml — Icon = иконка приложения в заголовке и таскбаре.
+code/Windows/SettingsWindow.xaml — та же иконка в заголовке.
 Критерий готовности: тайтл-бары обоих окон тёмные (не светло-серые), в заголовке, таскбаре и .exe видна монохромная иконка.
-
 Шаг 3: Мини-оверлей во время записи (пилюля как у Murmur, без красной точки)
 Файлы:
-- (новый файл) `code/Windows/RecordingOverlay.xaml` —_borderless_ пилюля: AllowsTransparency, Topmost, без задачи в таскбаре, скруглённый чёрный фон, монохромные вертикальные бары волны + таймер mm:ss; красной точки нет.
-- (новый файл) `code/Windows/RecordingOverlay.xaml.cs` — показ/скрытие, тик таймера, анимация баров от SamplesAvailable; второе состояние «Распознаю…» после отпускания хоткея.
-- `code/ViewModels/MainViewModel.cs` — открывать оверлей на RecordPressed/StartRecording, переводить в «Распознаю…» на StopRecording, скрывать после результата или ошибки.
+(новый файл) code/Windows/RecordingOverlay.xaml —borderless пилюля: AllowsTransparency, Topmost, без задачи в таскбаре, скруглённый чёрный фон, монохромные вертикальные бары волны + таймер mm:ss; красной точки нет.
+(новый файл) code/Windows/RecordingOverlay.xaml.cs — показ/скрытие, тик таймера, анимация баров от SamplesAvailable; второе состояние «Распознаю…» после отпускания хоткея.
+code/ViewModels/MainViewModel.cs — открывать оверлей на RecordPressed/StartRecording, переводить в «Распознаю…» на StopRecording, скрывать после результата или ошибки.
 Критерий готовности: зажал F4 — сверху по центру появилась пилюля с волной и таймером без красной точки; отпустил — показала «Распознаю…» и скрылась после результата; в таскбаре оверлей не виден.
-
 Шаг 4: Скорость распознавания до уровня Murmur (устранение корневых тормозов)
 Файлы:
-- `code/Services/WhisperNetService.cs` — кешировать WhisperProcessor (строить один раз на модель, не на каждую диктовку), потоки = ProcessorCount, одиночная температура (без fallback-пересэмплирований), beam=1, отключить таймстампы для скорости.
-- `code/App.xaml.cs` — фоновый warm-up модели при старте приложения (загрузка фабрики/процессора без блокировки UI), чтобы первая диктовка не висела.
-- `code/Leron.Audio.csproj` — добавить PackageReference Whisper.net.Runtime.Vulkan ТОЛЬКО если на машине есть дискретная GPU (NVIDIA/AMD); если GPU нет — пункт пропускаем, остаются CPU-оптимизации выше.
-- `code/ViewModels/MainViewModel.cs` — выводить в статус время распознавания («Распознано за 1.8 с») для замеров и сравнения с Murmur.
+code/Services/WhisperNetService.cs — кешировать WhisperProcessor (строить один раз на модель, не на каждую диктовку), потоки = ProcessorCount, одиночная температура (без fallback-пересэмплирований), beam=1, отключить таймстампы для скорости.
+code/App.xaml.cs — фоновый warm-up модели при старте приложения (загрузка фабрики/процессора без блокировки UI), чтобы первая диктовка не висела.
+code/Leron.Audio.csproj — добавить PackageReference Whisper.net.Runtime.Vulkan ТОЛЬКО если на машине есть дискретная GPU (NVIDIA/AMD); если GPU нет — пункт пропускаем, остаются CPU-оптимизации выше.
+code/ViewModels/MainViewModel.cs — выводить в статус время распознавания («Распознано за 1.8 с») для замеров и сравнения с Murmur.
 Критерий готовности: повторные диктовки заметно быстрее прежних (процессор не пересоздаётся), первая диктовка быстрая благодаря warm-up, в статусе видно измеренное время; UI не подвисает во время загрузки модели.
-
 Шаг 5: Качество RU/EN (code-switching) и словарь технических терминов
 Файлы:
-- `code/Services/WhisperNetService.cs` — передавать initial prompt из настроек (короткая двуязычная подсказка с техническими терминами), язык оставить auto.
-- `code/Services/SettingsService.cs` — новое поле настроек InitialPrompt (словарь-подсказка), по умолчанию заполнен типовыми EN-терминами программиста.
-- `code/ViewModels/SettingsViewModel.cs` — свойство InitialPrompt, сохранение в settings.json, применение без перезапуска; кнопка «Диагностика» (модель/рантайм GPU/микрофоны/статус) в StatusMessage.
-- `code/Windows/SettingsWindow.xaml` — поле «Словарь-подсказка (термины)» на вкладке «Модель» + кнопка «Диагностика».
+code/Services/WhisperNetService.cs — передавать initial prompt из настроек (короткая двуязычная подсказка с техническими терминами), язык оставить auto.
+code/Services/SettingsService.cs — новое поле настроек InitialPrompt (словарь-подсказка), по умолчанию заполнен типовыми EN-терминами программиста.
+code/ViewModels/SettingsViewModel.cs — свойство InitialPrompt, сохранение в settings.json, применение без перезапуска; кнопка «Диагностика» (модель/рантайм GPU/микрофоны/статус) в StatusMessage.
+code/Windows/SettingsWindow.xaml — поле «Словарь-подсказка (термины)» на вкладке «Модель» + кнопка «Диагностика».
 Критерий готовности: русская речь с английскими терминами (commit, deploy, backend, breakpoint…) распознаётся с латиницей, а не транслитом; словарь правится в настройках и применяется сразу; диагностика показывает окружение.
-
 Шаг 6: Общие улучшения: автозапуск с Windows и безопасная авто-вставка
 Файлы:
-- (новый файл) `code/Services/AutostartService.cs` — включение/выключение автозапуска через ключ реестра HKCU Run (без планировщика).
-- `code/Services/ClipboardService.cs` — перед эмуляцией Ctrl+V проверять GetForegroundWindow: не вставлять в собственное окно LERON-AUDIO (fallback — только буфер).
-- `code/ViewModels/SettingsViewModel.cs` — чекбокс «Запускать с Windows» на вкладке «Запуск», сохранение через AutostartService.
-- `code/Windows/SettingsWindow.xaml` — чекбокс автозапуска на вкладке «Запуск».
+(новый файл) code/Services/AutostartService.cs — включение/выключение автозапуска через ключ реестра HKCU Run (без планировщика).
+code/Services/ClipboardService.cs — перед эмуляцией Ctrl+V проверять GetForegroundWindow: не вставлять в собственное окно LERON-AUDIO (fallback — только буфер).
+code/ViewModels/SettingsViewModel.cs — чекбокс «Запускать с Windows» на вкладке «Запуск», сохранение через AutostartService.
+code/Windows/SettingsWindow.xaml — чекбокс автозапуска на вкладке «Запуск».
 Критерий готовности: галка автозапуска переживает перезагрузку Windows; Ctrl+V никогда не прилетает в окно самого LERON-AUDIO.
-
 Шаг 7: Документация и контрольный прогон
 Файлы:
-- (новый файл) `docs/MANUAL_TEST.md` — чек-лист: монохромность UI, тёмные тайтл-бары, оверлей-пилюля без красной точки, замер скорости 3 диктовок, RU/EN-фраза с терминами, авто-вставка в Блокнот, автозапуск.
-- `для ии/информация/TASK.md` — обновить чек-лист релиза 1 новыми пунктами (тема, оверлей, скорость, RU/EN, автозапуск) со статусами.
+(новый файл) docs/MANUAL_TEST.md — чек-лист: монохромность UI, тёмные тайтл-бары, оверлей-пилюля без красной точки, замер скорости 3 диктовок, RU/EN-фраза с терминами, авто-вставка в Блокнот, автозапуск.
+для ии/информация/TASK.md — обновить чек-лист релиза 1 новыми пунктами (тема, оверлей, скорость, RU/EN, автозапуск) со статусами.
 Критерий готовности: ручной сценарий из MANUAL_TEST.md проходит 3 раза подряд без ошибок; TASK.md отражает фактическое состояние релиза 1.
-
 === КОНЕЦ ПЛАНА ===
 
 ### 3. Файлы

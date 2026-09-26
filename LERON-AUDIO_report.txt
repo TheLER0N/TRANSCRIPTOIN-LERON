@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 26.09.2026 23:10:26
+  GENERATED      : 27.09.2026 00:38:44
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -92,6 +92,8 @@ C:\Users\Пользователь\Desktop\LERON-AUDIO
 |   |   +---MainViewModel.cs
 |   |   \---SettingsViewModel.cs
 |   \---Windows
+|       +---RecordingOverlay.xaml
+|       +---RecordingOverlay.xaml.cs
 |       +---SettingsWindow.xaml
 |       \---SettingsWindow.xaml.cs
 +---download-model.bat
@@ -808,281 +810,284 @@ SIZE: 2145 bytes
 
 ------------------------------------------------
 FILE: code\MainWindow.xaml
-SIZE: 21112 bytes
+SIZE: 14838 bytes
 ------------------------------------------------
 <!-- code/MainWindow.xaml -->
 <Window x:Class="Leron.Audio.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:Leron.Audio.Controls"
-        Title="LERON-AUDIO"
-        Width="1180" Height="720"
-        MinWidth="980" MinHeight="600"
-        WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
-        Background="{StaticResource BrushBg}"
-        Style="{StaticResource BaseWindow}">
-    <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0"
-                      ResizeBorderThickness="6"
-                      GlassFrameThickness="0"
-                      CornerRadius="0"
-                      UseAeroCaptionButtons="False"/>
-    </WindowChrome.WindowChrome>
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolVis"/>
-    </Window.Resources>
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <!-- Тайтл-бар -->
-        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="OnTitleBarMouseDown">
-            <Grid Height="46">
-                <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
-                    <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource BrushAccentGradient}" Margin="0,0,10,0">
-                        <Viewbox Width="14" Height="14">
-                            <Path Fill="White" Data="M4,10 L4,14 M8,6 L8,18 M12,3 L12,21 M16,7 L16,17 M20,10 L20,14" Stroke="White" StrokeThickness="2.4"/>
-                        </Viewbox>
-                    </Border>
-                    <TextBlock Text="LERON-AUDIO" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border Style="{StaticResource Chip}" Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Style="{StaticResource ChipMutedText}" Text="v0.1"/>
-                    </Border>
-                </StackPanel>
-                <Border Style="{StaticResource Chip}" Padding="14,6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="8" Height="8" Fill="{StaticResource BrushOk}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock Text="{Binding StatusPillText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0" VerticalAlignment="Center">
-                    <Button Content="—" Style="{StaticResource FlatButton}" Width="38" Height="32" Margin="0,0,6,0" Click="OnMinimizeClick"/>
-                    <Button Content="□" Style="{StaticResource FlatButton}" Width="38" Height="32" Margin="0,0,6,0" Click="OnMaximizeClick"/>
-                    <Button Content="✕" Style="{StaticResource FlatButton}" Width="38" Height="32" Foreground="{StaticResource BrushDanger}" Click="OnCloseClick"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-        <!-- Контент -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="230"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="340"/>
-            </Grid.ColumnDefinitions>
-            <!-- Сайдбар -->
-            <Border Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,1,0">
-                <StackPanel Margin="12">
-                    <RadioButton x:Name="NavRecord" Style="{StaticResource NavButton}" GroupName="Nav" IsChecked="True" Checked="NavRecord_Checked" Margin="0,0,0,4">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="16" Height="16" Margin="0,0,10,0">
-                                <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
-                            </Viewbox>
-                            <TextBlock Text="Запись" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="NavHistory" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavHistory_Checked" Margin="0,0,0,4">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="16" Height="16" Margin="0,0,10,0">
-                                <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M12,2 C6.5,2 2,6.5 2,12 C2,17.5 6.5,22 12,22 C17.5,22 22,17.5 22,12 C22,6.5 17.5,2 12,2 Z M12,20 C7.6,20 4,16.4 4,12 C4,7.6 7.6,4 12,4 C16.4,4 20,7.6 20,12 C20,16.4 16.4,20 12,20 Z M12.5,7 L11,7 L11,13 L16.2,16.2 L17,14.9 L12.5,12.2 L12.5,7 Z"/>
-                            </Viewbox>
-                            <TextBlock Text="История" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="NavDictionary" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavDictionary_Checked" Margin="0,0,0,4">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="16" Height="16" Margin="0,0,10,0">
-                                <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M4,3 L11,3 C12.1,3 13,3.9 13,5 L13,21 C12.4,20.4 11.6,20 10.7,20 L4,20 C3.4,20 3,19.6 3,19 L3,4 C3,3.4 3.4,3 4,3 Z M20,3 L13.5,3 C14.3,3.6 15,4.4 15,5.4 L15,20 L20,20 C20.6,20 21,19.6 21,19 L21,4 C21,3.4 20.6,3 20,3 Z"/>
-                            </Viewbox>
-                            <TextBlock Text="Словарь" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavSettings_Checked" Margin="0,0,0,12">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="16" Height="16" Margin="0,0,10,0">
-                                <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M19.4,13 C19.4,12.7 19.5,12.3 19.5,12 C19.5,11.7 19.4,11.3 19.4,11 L21.5,9.4 C21.7,9.2 21.7,9 21.6,8.8 L19.6,5.4 C19.5,5.2 19.2,5.1 19,5.2 L16.5,6.2 C16,5.8 15.4,5.4 14.8,5.2 L14.4,2.6 C14.4,2.4 14.2,2.2 14,2.2 L10,2.2 C9.8,2.2 9.6,2.4 9.6,2.6 L9.2,5.2 C8.6,5.4 8,5.8 7.5,6.2 L5,5.2 C4.8,5.1 4.5,5.2 4.4,5.4 L2.4,8.8 C2.3,9 2.3,9.2 2.5,9.4 L4.6,11 C4.6,11.3 4.5,11.7 4.5,12 C4.5,12.3 4.6,12.7 4.6,13 L2.5,14.6 C2.3,14.8 2.3,15 2.4,15.2 L4.4,18.6 C4.5,18.8 4.8,18.9 5,18.8 L7.5,17.8 C8,18.2 8.6,18.6 9.2,18.8 L9.6,21.4 C9.6,21.6 9.8,21.8 10,21.8 L14,21.8 C14.2,21.8 14.4,21.6 14.4,21.4 L14.8,18.8 C15.4,18.6 16,18.2 16.5,17.8 L19,18.8 C19.2,18.9 19.5,18.8 19.6,18.6 L21.6,15.2 C21.7,15 21.7,14.8 21.5,14.6 L19.4,13 Z M12,15.5 C10.1,15.5 8.5,13.9 8.5,12 C8.5,10.1 10.1,8.5 12,8.5 C13.9,8.5 15.5,10.1 15.5,12 C15.5,13.9 13.9,15.5 12,15.5 Z"/>
-                            </Viewbox>
-                            <TextBlock Text="Настройки" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </RadioButton>
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource SectionHeader}" Text="УСТРОЙСТВО"/>
-                            <TextBlock Text="{Binding MicrophoneName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,8"/>
-                            <controls:LevelMeter x:Name="LevelMeterSide" Height="14" Segmented="True"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource CardBorder}">
-                        <StackPanel HorizontalAlignment="Center">
-                            <Border Background="{StaticResource BrushAccentDim}" BorderBrush="{StaticResource BrushAccent}" BorderThickness="1" CornerRadius="8" Padding="14,8" HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding HotkeyLabel}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource BrushAccent}"/>
-                            </Border>
-                            <TextBlock Style="{StaticResource ChipMutedText}" Text="Хоткей push-to-talk" Margin="0,8,0,0"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Border>
-            <!-- Центр: страница Запись -->
-            <Grid Grid.Column="1" Visibility="{Binding ShowRecord, Converter={StaticResource BoolVis}}">
-                <StackPanel Margin="20">
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,10">
-                                <TextBlock Style="{StaticResource ChipText}" Text="ЖИВАЯ ВОЛНА" FontSize="13" HorizontalAlignment="Left"/>
-                                <TextBlock Text="{Binding RecordTimerText}" FontFamily="Consolas" FontSize="16" HorizontalAlignment="Right"/>
-                            </Grid>
-                            <controls:LevelMeter x:Name="WaveBars" Height="110" VerticalBars="True"/>
-                        </StackPanel>
-                    </Border>
-                    <Button x:Name="PttButton"
-                            Command="{Binding ToggleRecordingCommand}"
-                            RenderTransformOrigin="0.5,0.5"
-                            Width="176" Height="176"
-                            HorizontalAlignment="Center"
-                            Margin="0,0,0,14">
-                        <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource PttRoundButton}">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsRecording}" Value="True">
-                                        <Setter Property="Background" Value="White"/>
-                                        <Setter Property="Foreground" Value="#0B0F10"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                        <Viewbox Width="52" Height="52">
-                            <Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                  Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
-                        </Viewbox>
-                    </Button>
-                    <TextBlock Text="{Binding RecordHint}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Border Style="{StaticResource Chip}" Margin="0,0,8,0">
-                            <!-- Без Style на Run: стиль ChipMutedText имеет TargetType TextBlock
-                                 и на Run бросал исключение при загрузке окна -->
-                            <TextBlock Foreground="{StaticResource BrushMuted}" FontSize="12">
-                                <Run Text="Сессий сегодня: "/><Run Foreground="{StaticResource BrushAccent}" FontWeight="SemiBold" Text="{Binding SessionsToday, Mode=OneWay}"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Style="{StaticResource Chip}" Margin="0,0,8,0">
-                            <TextBlock Foreground="{StaticResource BrushMuted}" FontSize="12">
-                                <Run Text="Слов сегодня: "/><Run Foreground="{StaticResource BrushAccent}" FontWeight="SemiBold" Text="{Binding WordsToday, Mode=OneWay}"/>
-                            </TextBlock>
-                        </Border>
-                        <Border Style="{StaticResource Chip}">
-                            <TextBlock Style="{StaticResource ChipMutedText}" Text="{Binding NoiseSuppressionText}"/>
-                        </Border>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-            <!-- Центр: страница История -->
-            <Grid Grid.Column="1" Visibility="{Binding ShowHistory, Converter={StaticResource BoolVis}}" Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <TextBox Style="{StaticResource DarkBox}" Margin="0,0,0,12"
-                         Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="Поиск по истории диктовок"/>
-                <ListBox Grid.Row="1" ItemsSource="{Binding HistoryItems}"
-                         SelectedItem="{Binding SelectedHistoryItem}"
-                         Background="Transparent" BorderThickness="0"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto">
-                    <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                            <Setter Property="Margin" Value="0,0,0,8"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="bd" Background="Transparent" CornerRadius="10" Padding="2">
-                                            <ContentPresenter/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushHover}"/>
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource BrushAccentDim}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.ItemContainerStyle>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource CardBorder}" Padding="12,10">
-                                <StackPanel>
-                                    <Grid>
-                                        <TextBlock Style="{StaticResource ChipText}" Text="{Binding WhenText}" HorizontalAlignment="Left"/>
-                                        <TextBlock Style="{StaticResource ChipMutedText}" HorizontalAlignment="Right">
-                                            <Run Text="{Binding Chars, Mode=OneWay}"/><Run Text=" символов"/>
-                                        </TextBlock>
-                                    </Grid>
-                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                               Foreground="{StaticResource BrushText}" MaxHeight="66" TextTrimming="CharacterEllipsis"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
-            <!-- Транскрипт справа -->
-            <Border Grid.Column="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1,0,0,0">
-                <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                        <TextBlock Text="Транскрипт" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <Border Style="{StaticResource Chip}" Padding="10,4" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource ChipText}" Text="{Binding LanguageLabel}"/>
-                        </Border>
-                    </StackPanel>
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding TranscriptSegments}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Style="{StaticResource Chip}" Padding="12,10" Margin="0,0,0,8" HorizontalAlignment="Stretch">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Style="{StaticResource ChipText}" Text="{Binding Timecode}" Margin="0,0,10,0"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource BrushText}"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <TextBlock Grid.Row="2" Style="{StaticResource ChipMutedText}" Text="{Binding LastSessionText}" Margin="0,10,0,0"/>
-                </Grid>
-            </Border>
-        </Grid>
-        <!-- Нижний бар -->
-        <Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
-            <Grid Height="64" Margin="16,0">
-                <Button Content="Настройки" Click="OnSettingsClick" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Ellipse Width="8" Height="8" Fill="{StaticResource BrushOk}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" MaxWidth="520" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Content="Копировать" Command="{Binding CopyCommand}" Style="{StaticResource AccentButton}" Margin="0,0,8,0"/>
-                    <Button Content="Очистить" Command="{Binding ClearCommand}" Style="{StaticResource DangerButton}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
-    </Grid>
+xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+xmlns:controls="clr-namespace:Leron.Audio.Controls"
+Title="LERON-AUDIO"
+Width="1180" Height="720"
+MinWidth="980" MinHeight="600"
+WindowStartupLocation="CenterScreen"
+WindowStyle="None"
+Background="{StaticResource BrushBg}"
+Style="{StaticResource BaseWindow}">
+<WindowChrome.WindowChrome>
+<WindowChrome CaptionHeight="0"
+ResizeBorderThickness="6"
+GlassFrameThickness="0"
+CornerRadius="0"
+UseAeroCaptionButtons="False"/>
+</WindowChrome.WindowChrome>
+<Window.Resources>
+<BooleanToVisibilityConverter x:Key="BoolVis"/>
+</Window.Resources>
+<Grid>
+<Grid.RowDefinitions>
+<RowDefinition Height="Auto"/>
+<RowDefinition Height="*"/>
+<RowDefinition Height="Auto"/>
+</Grid.RowDefinitions>
+<!-- Тайтл-бар -->
+<Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
+MouseLeftButtonDown="OnTitleBarMouseDown">
+<Grid Height="46">
+<StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+<Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource BrushAccentGradient}" Margin="0,0,10,0">
+<Viewbox Width="14" Height="14">
+<Path Fill="White" Data="M4,10 L4,14 M8,6 L8,18 M12,3 L12,21 M16,7 L16,17 M20,10 L20,14" Stroke="White" StrokeThickness="2.4"/>
+</Viewbox>
+</Border>
+<TextBlock Text="LERON-AUDIO" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+<Border Style="{StaticResource Chip}" Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
+<TextBlock Style="{StaticResource ChipMutedText}" Text="v0.1"/>
+</Border>
+</StackPanel>
+<Border Style="{StaticResource Chip}" Padding="14,6" HorizontalAlignment="Center" VerticalAlignment="Center">
+<StackPanel Orientation="Horizontal">
+<Ellipse Width="8" Height="8" Fill="{StaticResource BrushOk}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+<TextBlock Text="{Binding StatusPillText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+</StackPanel>
+</Border>
+<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0" VerticalAlignment="Center">
+<Button Content="—" Style="{StaticResource FlatButton}" Width="38" Height="32" Margin="0,0,6,0" Click="OnMinimizeClick"/>
+<Button Content="□" Style="{StaticResource FlatButton}" Width="38" Height="32" Margin="0,0,6,0" Click="OnMaximizeClick"/>
+<Button Content="✕" Style="{StaticResource FlatButton}" Width="38" Height="32" Foreground="{StaticResource BrushDanger}" Click="OnCloseClick"/>
+</StackPanel>
+</Grid>
+</Border>
+<!-- Контент -->
+<Grid Grid.Row="1">
+<Grid.ColumnDefinitions>
+<ColumnDefinition Width="230"/>
+<ColumnDefinition Width="*"/>
+<ColumnDefinition Width="340"/>
+</Grid.ColumnDefinitions>
+<!-- Сайдбар -->
+<Border Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,1,0">
+<StackPanel Margin="12">
+<RadioButton x:Name="NavRecord" Style="{StaticResource NavButton}" GroupName="Nav" IsChecked="True" Checked="NavRecord_Checked" Margin="0,0,0,4">
+<StackPanel Orientation="Horizontal">
+<Viewbox Width="16" Height="16" Margin="0,0,10,0">
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
+</Viewbox>
+<TextBlock Text="Запись" VerticalAlignment="Center"/>
+</StackPanel>
+</RadioButton>
+<RadioButton x:Name="NavHistory" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavHistory_Checked" Margin="0,0,0,4">
+<StackPanel Orientation="Horizontal">
+<Viewbox Width="16" Height="16" Margin="0,0,10,0">
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="F1 M12,2 C6.5,2 2,6.5 2,12 C2,17.5 6.5,22 12,22 C17.5,22 22,17.5 22,12 C22,6.5 17.5,2 12,2 Z M12,20 C7.6,20 4,16.4 4,12 C4,7.6 7.6,4 12,4 C16.4,4 20,7.6 20,12 C20,16.4 16.4,20 12,20 Z M12.5,7 L11,7 L11,13 L16.2,16.2 L17,14.9 L12.5,12.2 L12.5,7 Z"/>
+</Viewbox>
+<TextBlock Text="История" VerticalAlignment="Center"/>
+</StackPanel>
+</RadioButton>
+<RadioButton x:Name="NavDictionary" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavDictionary_Checked" Margin="0,0,0,4">
+<StackPanel Orientation="Horizontal">
+<Viewbox Width="16" Height="16" Margin="0,0,10,0">
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M4,3 L11,3 C12.1,3 13,3.9 13,5 L13,21 C12.4,20.4 11.6,20 10.7,20 L4,20 C3.4,20 3,19.6 3,19 L3,4 C3,3.4 3.4,3 4,3 Z M20,3 L13.5,3 C14.3,3.6 15,4.4 15,5.4 L15,20 L20,20 C20.6,20 21,19.6 21,19 L21,4 C21,3.4 20.6,3 20,3 Z"/>
+</Viewbox>
+<TextBlock Text="Словарь" VerticalAlignment="Center"/>
+</StackPanel>
+</RadioButton>
+<RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="Nav" Checked="NavSettings_Checked" Margin="0,0,0,12">
+<StackPanel Orientation="Horizontal">
+<Viewbox Width="16" Height="16" Margin="0,0,10,0">
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Data="M19.4,13 C19.4,12.7 19.5,12.3 19.5,12 C19.5,11.7 19.4,11.3 19.4,11 L21.5,9.4 C21.7,9.2 21.7,9 21.6,8.8 L19.6,5.4 C19.5,5.2 19.2,5.1 19,5.2 L16.5,6.2 C16,5.8 15.4,5.4 14.8,5.2 L14.4,2.6 C14.4,2.4 14.2,2.2 14,2.2 L10,2.2 C9.8,2.2 9.6,2.4 9.6,2.6 L9.2,5.2 C8.6,5.4 8,5.8 7.5,6.2 L5,5.2 C4.8,5.1 4.5,5.2 4.4,5.4 L2.4,8.8 C2.3,9 2.3,9.2 2.5,9.4 L4.6,11 C4.6,11.3 4.5,11.7 4.5,12 C4.5,12.3 4.6,12.7 4.6,13 L2.5,14.6 C2.3,14.8 2.3,15 2.4,15.2 L4.4,18.6 C4.5,18.8 4.8,18.9 5,18.8 L7.5,17.8 C8,18.2 8.6,18.6 9.2,18.8 L9.6,21.4 C9.6,21.6 9.8,21.8 10,21.8 L14,21.8 C14.2,21.8 14.4,21.6 14.4,21.4 L14.8,18.8 C15.4,18.6 16,18.2 16.5,17.8 L19,18.8 C19.2,18.9 19.5,18.8 19.6,18.6 L21.6,15.2 C21.7,15 21.7,14.8 21.5,14.6 L19.4,13 Z M12,15.5 C10.1,15.5 8.5,13.9 8.5,12 C8.5,10.1 10.1,8.5 12,8.5 C13.9,8.5 15.5,10.1 15.5,12 C15.5,13.9 13.9,15.5 12,15.5 Z"/>
+</Viewbox>
+<TextBlock Text="Настройки" VerticalAlignment="Center"/>
+</StackPanel>
+</RadioButton>
+<Border Style="{StaticResource CardBorder}" Margin="0,0,0,10">
+<StackPanel>
+<TextBlock Style="{StaticResource SectionHeader}" Text="УСТРОЙСТВО"/>
+<TextBlock Text="{Binding MicrophoneName}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,8"/>
+<controls:LevelMeter x:Name="LevelMeterSide" Height="14" Segmented="True"/>
+</StackPanel>
+</Border>
+<Border Style="{StaticResource CardBorder}">
+<StackPanel HorizontalAlignment="Center">
+<Border Background="{StaticResource BrushAccentDim}" BorderBrush="{StaticResource BrushAccent}" BorderThickness="1" CornerRadius="8" Padding="14,8" HorizontalAlignment="Center">
+<TextBlock Text="{Binding HotkeyLabel}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource BrushAccent}"/>
+</Border>
+<TextBlock Style="{StaticResource ChipMutedText}" Text="Хоткей push-to-talk" Margin="0,8,0,0"/>
+</StackPanel>
+</Border>
+</StackPanel>
+</Border>
+<!-- Центр: страница Запись -->
+<Grid Grid.Column="1" Visibility="{Binding ShowRecord, Converter={StaticResource BoolVis}}">
+<Grid.RowDefinitions>
+<RowDefinition Height="Auto"/>
+<RowDefinition Height="*"/>
+<RowDefinition Height="Auto"/>
+</Grid.RowDefinitions>
+<Border Style="{StaticResource CardBorder}" Margin="20,20,20,0">
+<StackPanel>
+<Grid Margin="0,0,0,10">
+<TextBlock Style="{StaticResource ChipText}" Text="ЖИВАЯ ВОЛНА" FontSize="13" HorizontalAlignment="Left"/>
+<TextBlock Text="{Binding RecordTimerText}" FontFamily="Consolas" FontSize="16" HorizontalAlignment="Right"/>
+</Grid>
+<controls:LevelMeter x:Name="WaveBars" Height="110" VerticalBars="True"/>
+</StackPanel>
+</Border>
+<StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="20,16">
+<Button x:Name="PttButton"
+Command="{Binding ToggleRecordingCommand}"
+RenderTransformOrigin="0.5,0.5"
+Width="176" Height="176"
+HorizontalAlignment="Center"
+Margin="0,0,0,14">
+<Button.Style>
+<Style TargetType="Button" BasedOn="{StaticResource PttRoundButton}">
+<Style.Triggers>
+<DataTrigger Binding="{Binding IsRecording}" Value="True">
+<Setter Property="Background" Value="White"/>
+<Setter Property="Foreground" Value="#0B0F10"/>
+</DataTrigger>
+</Style.Triggers>
+</Style>
+</Button.Style>
+<Viewbox Width="52" Height="52">
+<Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
+</Viewbox>
+</Button>
+<TextBlock Text="{Binding RecordHint}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+</StackPanel>
+<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="20,0,20,20">
+<Border Style="{StaticResource Chip}" Margin="0,0,8,0">
+<TextBlock Foreground="{StaticResource BrushMuted}" FontSize="12">
+<Run Text="Сессий сегодня: "/><Run Foreground="{StaticResource BrushAccent}" FontWeight="SemiBold" Text="{Binding SessionsToday, Mode=OneWay}"/>
+</TextBlock>
+</Border>
+<Border Style="{StaticResource Chip}" Margin="0,0,8,0">
+<TextBlock Foreground="{StaticResource BrushMuted}" FontSize="12">
+<Run Text="Слов сегодня: "/><Run Foreground="{StaticResource BrushAccent}" FontWeight="SemiBold" Text="{Binding WordsToday, Mode=OneWay}"/>
+</TextBlock>
+</Border>
+<Border Style="{StaticResource Chip}">
+<TextBlock Style="{StaticResource ChipMutedText}" Text="{Binding NoiseSuppressionText}"/>
+</Border>
+</StackPanel>
+</Grid>
+<!-- Центр: страница История -->
+<Grid Grid.Column="1" Visibility="{Binding ShowHistory, Converter={StaticResource BoolVis}}" Margin="20">
+<Grid.RowDefinitions>
+<RowDefinition Height="Auto"/>
+<RowDefinition Height="*"/>
+</Grid.RowDefinitions>
+<TextBox Style="{StaticResource DarkBox}" Margin="0,0,0,12"
+Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
+ToolTip="Поиск по истории диктовок"/>
+<ListBox Grid.Row="1" ItemsSource="{Binding HistoryItems}"
+SelectedItem="{Binding SelectedHistoryItem}"
+Background="Transparent" BorderThickness="0"
+ScrollViewer.VerticalScrollBarVisibility="Auto">
+<ListBox.ItemContainerStyle>
+<Style TargetType="ListBoxItem">
+<Setter Property="Margin" Value="0,0,0,8"/>
+<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+<Setter Property="Template">
+<Setter.Value>
+<ControlTemplate TargetType="ListBoxItem">
+<Border x:Name="bd" Background="Transparent" CornerRadius="10" Padding="2">
+<ContentPresenter/>
+</Border>
+<ControlTemplate.Triggers>
+<Trigger Property="IsMouseOver" Value="True">
+<Setter TargetName="bd" Property="Background" Value="{StaticResource BrushHover}"/>
+</Trigger>
+<Trigger Property="IsSelected" Value="True">
+<Setter TargetName="bd" Property="Background" Value="{StaticResource BrushAccentDim}"/>
+</Trigger>
+</ControlTemplate.Triggers>
+</ControlTemplate>
+</Setter.Value>
+</Setter>
+</Style>
+</ListBox.ItemContainerStyle>
+<ListBox.ItemTemplate>
+<DataTemplate>
+<Border Style="{StaticResource CardBorder}" Padding="12,10">
+<StackPanel>
+<Grid>
+<TextBlock Style="{StaticResource ChipText}" Text="{Binding WhenText}" HorizontalAlignment="Left"/>
+<TextBlock Style="{StaticResource ChipMutedText}" HorizontalAlignment="Right">
+<Run Text="{Binding Chars, Mode=OneWay}"/><Run Text=" символов"/>
+</TextBlock>
+</Grid>
+<TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,6,0,0"
+Foreground="{StaticResource BrushText}" MaxHeight="66" TextTrimming="CharacterEllipsis"/>
+</StackPanel>
+</Border>
+</DataTemplate>
+</ListBox.ItemTemplate>
+</ListBox>
+</Grid>
+<!-- Транскрипт справа -->
+<Border Grid.Column="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1,0,0,0">
+<Grid Margin="16">
+<Grid.RowDefinitions>
+<RowDefinition Height="Auto"/>
+<RowDefinition Height="*"/>
+<RowDefinition Height="Auto"/>
+</Grid.RowDefinitions>
+<StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+<TextBlock Text="Транскрипт" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+<Border Style="{StaticResource Chip}" Padding="10,4" Margin="12,0,0,0" VerticalAlignment="Center">
+<TextBlock Style="{StaticResource ChipText}" Text="{Binding LanguageLabel}"/>
+</Border>
+</StackPanel>
+<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+<ItemsControl ItemsSource="{Binding TranscriptSegments}">
+<ItemsControl.ItemTemplate>
+<DataTemplate>
+<Border Style="{StaticResource Chip}" Padding="12,10" Margin="0,0,0,8" HorizontalAlignment="Stretch">
+<Grid>
+<Grid.ColumnDefinitions>
+<ColumnDefinition Width="Auto"/>
+<ColumnDefinition Width="*"/>
+</Grid.ColumnDefinitions>
+<TextBlock Style="{StaticResource ChipText}" Text="{Binding Timecode}" Margin="0,0,10,0"/>
+<TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource BrushText}"/>
+</Grid>
+</Border>
+</DataTemplate>
+</ItemsControl.ItemTemplate>
+</ItemsControl>
+</ScrollViewer>
+<TextBlock Grid.Row="2" Style="{StaticResource ChipMutedText}" Text="{Binding LastSessionText}" Margin="0,10,0,0"/>
+</Grid>
+</Border>
+</Grid>
+<!-- Нижний бар -->
+<Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
+<Grid Height="64" Margin="16,0">
+<Button Content="Настройки" Click="OnSettingsClick" Style="{StaticResource FlatButton}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+<Ellipse Width="8" Height="8" Fill="{StaticResource BrushOk}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+<TextBlock Text="{Binding StatusText}" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" MaxWidth="700" TextTrimming="CharacterEllipsis"/>
+</StackPanel>
+<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+<Button Content="Копировать" Command="{Binding CopyCommand}" Style="{StaticResource AccentButton}" Margin="0,0,8,0"/>
+<Button Content="Очистить" Command="{Binding ClearCommand}" Style="{StaticResource DangerButton}"/>
+</StackPanel>
+</Grid>
+</Border>
+</Grid>
 </Window>
 
 ------------------------------------------------
@@ -1413,8 +1418,11 @@ public sealed class AutostartService
 
 ------------------------------------------------
 FILE: code\Services\ClipboardService.cs
-SIZE: 1020 bytes
+SIZE: 1953 bytes
 ------------------------------------------------
+// code/Services/ClipboardService.cs
+using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using WindowsInput;
@@ -1425,6 +1433,12 @@ namespace Leron.Audio.Services;
 public sealed class ClipboardService : IClipboardService
 {
     private readonly SettingsService _settings;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     public ClipboardService(SettingsService settings)
     {
@@ -1440,6 +1454,24 @@ public sealed class ClipboardService : IClipboardService
     public async Task PasteIntoActiveWindowAsync()
     {
         if (!_settings.Current.AutoPaste) return;
+
+        try
+        {
+            var hwnd = GetForegroundWindow();
+            if (hwnd != IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out uint pid);
+                if (pid == Environment.ProcessId)
+                {
+                    // Фокус на самом LERON-AUDIO — пропускаем авто-вставку, текст уже в буфере
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback: если не удалось определить окно
+        }
 
         await Task.Delay(150);
         try
@@ -3322,7 +3354,7 @@ SIZE: 22050 bytes
 
 ------------------------------------------------
 FILE: code\ViewModels\MainViewModel.cs
-SIZE: 12303 bytes
+SIZE: 13083 bytes
 ------------------------------------------------
 // code/ViewModels/MainViewModel.cs
 using System;
@@ -3332,10 +3364,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Leron.Audio.Services;
+using Leron.Audio.Windows;
 
 namespace Leron.Audio.ViewModels;
 
@@ -3366,6 +3400,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly RuntimeService _runtime;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _recordSw = new();
+    private RecordingOverlay? _overlay;
 
     [ObservableProperty] private bool _isRecording;
     [ObservableProperty] private bool _isRecognizing;
@@ -3382,6 +3417,7 @@ public sealed partial class MainViewModel : ObservableObject
     public string RecordButtonText => IsRecording
         ? "● Идёт запись... Отпусти для распознавания"
         : "Нажми и держи F4 (или эту кнопку)";
+
     public string StatusPillText => IsRecording ? "ЗАПИСЬ…" : IsRecognizing ? "РАСПОЗНАЮ…" : "ГОТОВ К ЗАПИСИ";
     public bool ShowRecord => CurrentPage == "Record";
     public bool ShowHistory => CurrentPage == "History";
@@ -3410,10 +3446,13 @@ public sealed partial class MainViewModel : ObservableObject
         _settings = settings;
         _history = history;
         _runtime = runtime;
+
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
+
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => RecordTimerText = _recordSw.Elapsed.ToString(@"hh\:mm\:ss");
+
         try
         {
             _hotkey.Register(_settings.Current.RecordHotkey);
@@ -3423,6 +3462,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             StatusText = $"Ошибка регистрации хоткея: {ex.Message}";
         }
+
         RefreshCounters();
         RefreshHistory();
     }
@@ -3460,8 +3500,6 @@ public sealed partial class MainViewModel : ObservableObject
         StatusText = $"Открыта сессия от {value.WhenText} ({value.Chars} символов).";
     }
 
-    /// Вызывается из окна после закрытия настроек и при старте: тянет счётчики,
-    /// имя микрофона, хоткей и флаги обработки без перезапуска приложения.
     public void RefreshCounters()
     {
         HotkeyLabel = _settings.Current.RecordHotkey;
@@ -3469,14 +3507,17 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(RecordHint));
         OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(NoiseSuppressionText));
+
         var names = NAudioCaptureService.EnumerateMicrophones();
         int id = _settings.Current.MicrophoneId;
         MicrophoneName = id >= 0 && id < names.Count ? names[id] : "Системный микрофон";
         OnPropertyChanged(nameof(MicrophoneName));
+
         SessionsToday = _history.CountToday();
         WordsToday = _history.WordsToday();
         OnPropertyChanged(nameof(SessionsToday));
         OnPropertyChanged(nameof(WordsToday));
+
         var all = _history.LoadAll();
         LastSessionText = all.Count > 0
             ? $"Последняя сессия: {all[0].Text.Length} символов"
@@ -3489,6 +3530,7 @@ public sealed partial class MainViewModel : ObservableObject
         var items = string.IsNullOrWhiteSpace(HistorySearch)
             ? _history.LoadAll()
             : _history.Search(HistorySearch);
+
         HistoryItems.Clear();
         foreach (var r in items)
         {
@@ -3517,12 +3559,23 @@ public sealed partial class MainViewModel : ObservableObject
     private void StartRecording()
     {
         if (IsRecording) return;
-        _capture.Start();
+        try
+        {
+            _capture.Start();
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Микрофон не стартовал: {ex.Message}";
+            SafeOverlay(o => o.ShowMicOff());
+            return;
+        }
+
         IsRecording = true;
         RecordTimerText = "00:00:00";
         _recordSw.Restart();
         _timer.Start();
         StatusText = "Запись...";
+        SafeOverlay(o => o.ShowRecording(_capture));
     }
 
     [RelayCommand]
@@ -3533,17 +3586,27 @@ public sealed partial class MainViewModel : ObservableObject
         IsRecording = false;
         _timer.Stop();
         _recordSw.Stop();
-        RecordTimerText = _recordSw.Elapsed.ToString(@"hh\:mm\:ss");
-        // Защита от пустой записи: whisper-cli падает на WAV без данных
-        if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
+        RecordTimerText = "00:00:00";
+
+        if (_capture.LastDataBytes < 9600) 
         {
             Transcript = string.Empty;
             TranscriptSegments.Clear();
             StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Аудио.";
+            SafeOverlay(o => o.ShowMicOff());
             return;
         }
+
+        // DSP: постобработка WAV перед распознаванием
+        if (_settings.Current.NormalizeAudio || _settings.Current.NoiseGate)
+        {
+            AudioPostProcessor.TryProcess(path, _settings.Current.NoiseGate, _settings.Current.NormalizeAudio);
+        }
+
         IsRecognizing = true;
         StatusText = "Распознаю...";
+        SafeOverlay(o => o.ShowRecognizing());
+
         var sw = Stopwatch.StartNew();
         try
         {
@@ -3551,13 +3614,16 @@ public sealed partial class MainViewModel : ObservableObject
             var text = result.Text;
             sw.Stop();
             var spent = $"Распознано за {sw.Elapsed.TotalSeconds:F1} с.";
+
             if (string.IsNullOrWhiteSpace(text))
             {
                 Transcript = string.Empty;
                 TranscriptSegments.Clear();
                 StatusText = $"Тишина: текст не распознан. {spent}";
+                SafeOverlay(o => o.HideOverlay());
                 return;
             }
+
             Transcript = text;
             TranscriptSegments.Clear();
             foreach (var s in result.Segments)
@@ -3568,7 +3634,7 @@ public sealed partial class MainViewModel : ObservableObject
                     Text = s.Text
                 });
             }
-            // История: сессия с таймкодами, моделью и фактическим бэкендом
+
             _history.Append(new HistoryRecord
             {
                 DurationSec = sw.Elapsed.TotalSeconds,
@@ -3582,9 +3648,12 @@ public sealed partial class MainViewModel : ObservableObject
                 Model = CurrentModelName(),
                 Runtime = _runtime.ResolveBackend(_settings.Current.RuntimeMode)
             });
+
             RefreshCounters();
             if (CurrentPage == "History") RefreshHistory();
+
             await _clipboard.SetTextAsync(text);
+
             if (_settings.Current.AutoPaste)
             {
                 StatusText = $"{spent} Вставляю в активное окно...";
@@ -3595,6 +3664,8 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 StatusText = $"{spent} Текст скопирован в буфер.";
             }
+
+            SafeOverlay(o => o.HideOverlay());
         }
         catch (Exception ex)
         {
@@ -3602,6 +3673,7 @@ public sealed partial class MainViewModel : ObservableObject
             Transcript = string.Empty;
             TranscriptSegments.Clear();
             StatusText = $"Ошибка распознавания: {ex.Message}";
+            SafeOverlay(o => o.HideOverlay());
         }
         finally
         {
@@ -3623,6 +3695,23 @@ public sealed partial class MainViewModel : ObservableObject
         Transcript = string.Empty;
         TranscriptSegments.Clear();
         StatusText = "Очищено.";
+    }
+
+    private void SafeOverlay(Action<RecordingOverlay> action)
+    {
+        try
+        {
+            var app = Application.Current;
+            if (app is null) return;
+            app.Dispatcher.Invoke(() =>
+            {
+                _overlay ??= new RecordingOverlay();
+                action(_overlay);
+            });
+        }
+        catch
+        {
+        }
     }
 
     private string CurrentModelName()
@@ -3981,10 +4070,179 @@ public sealed partial class SettingsViewModel : ObservableObject
 }
 
 ------------------------------------------------
-FILE: code\Windows\SettingsWindow.xaml
-SIZE: 14468 bytes
+FILE: code\Windows\RecordingOverlay.xaml
+SIZE: 3569 bytes
 ------------------------------------------------
-<!-- code/Windows/SettingsWindow.xaml -->
+<Window x:Class="Leron.Audio.Windows.RecordingOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Leron.Audio.Controls"
+        Title="LERON-AUDIO · Запись"
+        Width="440" Height="88"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        ResizeMode="NoResize"
+        IsHitTestVisible="False">
+    <Border x:Name="Root"
+            Background="#E60B0F10"
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="22"
+            Padding="18,12">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="Slide" Y="160"/>
+        </Border.RenderTransform>
+        <Grid>
+            <!-- Состояние: запись -->
+            <StackPanel x:Name="StateRecording" Orientation="Horizontal" VerticalAlignment="Center">
+                <Viewbox Width="22" Height="22" Margin="0,0,12,0">
+                    <Path Fill="{StaticResource BrushAccent}"
+                          Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
+                </Viewbox>
+                <controls:LevelMeter x:Name="OverlayBars" Width="250" Height="36" VerticalBars="True" Margin="0,0,14,0"/>
+                <TextBlock x:Name="TimerText" Text="00:00" FontFamily="Consolas" FontSize="18"
+                           Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Состояние: распознаю -->
+            <StackPanel x:Name="StateRecognizing" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                <Ellipse Width="10" Height="10" Fill="{StaticResource BrushAccent}" Margin="0,0,12,0"/>
+                <TextBlock Text="Распознаю…" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Состояние: микрофон выключен -->
+            <StackPanel x:Name="StateMicOff" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                <Viewbox Width="22" Height="22" Margin="0,0,12,0">
+                    <Grid>
+                        <Path Fill="{StaticResource BrushDanger}"
+                              Data="M12,14 C13.66,14 15,12.66 15,11 L15,5 C15,3.34 13.66,2 12,2 C10.34,2 9,3.34 9,5 L9,11 C9,12.66 10.34,14 12,14 Z M17,11 C17,13.76 14.76,16 12,16 C9.24,16 7,13.76 7,11 L5,11 C5,14.53 7.61,17.43 11,17.92 L11,21 L13,21 L13,17.92 C16.39,17.43 19,14.53 19,11 L17,11 Z"/>
+                        <Path Stroke="{StaticResource BrushDanger}" StrokeThickness="2.4" Data="M4,4 L20,20"/>
+                    </Grid>
+                </Viewbox>
+                <TextBlock Text="Микрофон выключен или недоступен" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushDanger}" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
+
+------------------------------------------------
+FILE: code\Windows\RecordingOverlay.xaml.cs
+SIZE: 3232 bytes
+------------------------------------------------
+// code/Windows/RecordingOverlay.xaml.cs
+using System;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
+using Leron.Audio.Services;
+
+namespace Leron.Audio.Windows;
+
+/// Пилюля-оверлей снизу по центру: запись с волной и таймером,
+/// «Распознаю…», «микрофон выключен». Не светится в таскбаре,
+/// не крадёт фокус и клики (IsHitTestVisible=False).
+public partial class RecordingOverlay : Window
+{
+    private readonly DispatcherTimer _clock;
+    private readonly DispatcherTimer _autoHide;
+    private readonly Stopwatch _sw = new();
+
+    public RecordingOverlay()
+    {
+        InitializeComponent();
+        _clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _clock.Tick += (_, _) => TimerText.Text = _sw.Elapsed.ToString(@"mm\:ss");
+
+        _autoHide = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _autoHide.Tick += (_, _) =>
+        {
+            _autoHide.Stop();
+            HideOverlay();
+        };
+    }
+
+    public void ShowRecording(IAudioCaptureService capture)
+    {
+        _autoHide.Stop();
+        OverlayBars.Attach(capture);
+        SetState(StateRecording);
+        _sw.Restart();
+        TimerText.Text = "00:00";
+        _clock.Start();
+        PlaceBottom();
+        if (!IsVisible) Show();
+        SlideTo(0);
+    }
+
+    public void ShowRecognizing()
+    {
+        _clock.Stop();
+        OverlayBars.Detach();
+        SetState(StateRecognizing);
+        PlaceBottom();
+        if (!IsVisible) Show();
+        SlideTo(0);
+    }
+
+    public void ShowMicOff()
+    {
+        _clock.Stop();
+        OverlayBars.Detach();
+        SetState(StateMicOff);
+        PlaceBottom();
+        if (!IsVisible) Show();
+        SlideTo(0);
+        _autoHide.Start();
+    }
+
+    public void HideOverlay()
+    {
+        _clock.Stop();
+        _autoHide.Stop();
+        OverlayBars.Detach();
+        SlideTo(160, hideOnComplete: true);
+    }
+
+    private void SetState(UIElement active)
+    {
+        StateRecording.Visibility = ReferenceEquals(active, StateRecording) ? Visibility.Visible : Visibility.Collapsed;
+        StateRecognizing.Visibility = ReferenceEquals(active, StateRecognizing) ? Visibility.Visible : Visibility.Collapsed;
+        StateMicOff.Visibility = ReferenceEquals(active, StateMicOff) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void PlaceBottom()
+    {
+        var work = SystemParameters.WorkArea;
+        Left = work.Left + (work.Width - Width) / 2;
+        Top = work.Bottom - Height - 28;
+    }
+
+    private void SlideTo(double targetY, bool hideOnComplete = false)
+    {
+        var anim = new DoubleAnimation(targetY, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseOut }
+        };
+        if (hideOnComplete)
+            anim.Completed += (_, _) => Hide();
+
+        Root.RenderTransform.BeginAnimation(TranslateTransform.YProperty, anim);
+    }
+}
+
+------------------------------------------------
+FILE: code\Windows\SettingsWindow.xaml
+SIZE: 14465 bytes
+------------------------------------------------
 <Window x:Class="Leron.Audio.Windows.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -4013,6 +4271,7 @@ SIZE: 14468 bytes
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+
         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <Button Content="←"
                     Click="OnBackClick"
@@ -4024,6 +4283,7 @@ SIZE: 14468 bytes
                        FontWeight="SemiBold"
                        VerticalAlignment="Center"/>
         </StackPanel>
+
         <TabControl x:Name="Tabs" Grid.Row="1">
             <TabItem Header="Общие">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -4032,6 +4292,7 @@ SIZE: 14468 bytes
                         <TextBlock Style="{StaticResource FieldLabel}" Margin="0,6,0,6" Text="Язык распознавания"/>
                         <ComboBox ItemsSource="{Binding LanguageNames}"
                                   SelectedIndex="{Binding SelectedLanguageIndex}"/>
+
                         <TextBlock Style="{StaticResource FieldLabel}" Margin="0,12,0,6"
                                    Text="Модель Whisper (скачанные отмечены галкой)"/>
                         <ComboBox ItemsSource="{Binding ModelNames}"
@@ -4049,10 +4310,10 @@ SIZE: 14468 bytes
                             </TextBlock.Style>
                         </TextBlock>
                         <ProgressBar Value="{Binding DownloadProgress, Mode=OneWay}"
-                                     Minimum="0" Maximum="1" Height="8" Margin="0,8,0,8"
-                                     Background="{StaticResource BrushPanel}"
-                                     Foreground="{StaticResource BrushAccent}"
-                                     BorderBrush="{StaticResource BrushBorder}"/>
+                                       Minimum="0" Maximum="1" Height="8" Margin="0,8,0,8"
+                                       Background="{StaticResource BrushPanel}"
+                                       Foreground="{StaticResource BrushAccent}"
+                                       BorderBrush="{StaticResource BrushBorder}"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                             <Button Content="Скачать"
                                     Command="{Binding DownloadSelectedModelCommand}"
@@ -4070,6 +4331,7 @@ SIZE: 14468 bytes
                                     Command="{Binding RunDiagnosticsCommand}"
                                     Style="{StaticResource ActionButton}"/>
                         </StackPanel>
+
                         <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6"
                                    Text="Устройство исполнения (на чём работает ИИ)"/>
                         <ComboBox ItemsSource="{Binding RuntimeNames}"
@@ -4077,6 +4339,7 @@ SIZE: 14468 bytes
                         <TextBlock Style="{StaticResource ChipMutedText}" Margin="0,6,0,12"
                                    TextWrapping="Wrap"
                                    Text="{Binding RuntimeDetectedText}"/>
+
                         <TextBlock Style="{StaticResource SectionHeader}" Text="ЗАПУСК"/>
                         <CheckBox Content="Запускать вместе с Windows"
                                   IsChecked="{Binding AutoStartWithWindows}"
@@ -4086,6 +4349,7 @@ SIZE: 14468 bytes
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
             <TabItem Header="Аудио">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
@@ -4094,6 +4358,7 @@ SIZE: 14468 bytes
                                    Text="Устройство записи: если волна не двигается при голосе — выбери другое"/>
                         <ComboBox ItemsSource="{Binding MicrophoneNames}"
                                   SelectedIndex="{Binding SelectedMicrophoneIndex}"/>
+
                         <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="ОБРАБОТКА ЗАПИСИ"/>
                         <CheckBox Content="Нормализовать громкость к -1 dBFS (тихие диктовки вытягивает, громкие прижимает)"
                                   IsChecked="{Binding NormalizeAudio}"
@@ -4106,6 +4371,7 @@ SIZE: 14468 bytes
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
             <TabItem Header="Клавиши">
                 <StackPanel Margin="12">
                     <TextBlock Style="{StaticResource FieldLabel}"
@@ -4121,6 +4387,7 @@ SIZE: 14468 bytes
                                Text="Если выключено — текст только копируется в буфер обмена. Ctrl+V никогда не отправляется в окно самого LERON-AUDIO."/>
                 </StackPanel>
             </TabItem>
+
             <TabItem Header="Хранилище">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="12">
@@ -4136,6 +4403,7 @@ SIZE: 14468 bytes
                                     Command="{Binding OpenModelsFolderCommand}"
                                     Style="{StaticResource ActionButton}" Margin="8,0,0,0"/>
                         </Grid>
+
                         <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6" Text="Файл истории диктовок"/>
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
@@ -4147,14 +4415,17 @@ SIZE: 14468 bytes
                                     Command="{Binding OpenHistoryFolderCommand}"
                                     Style="{StaticResource ActionButton}" Margin="8,0,0,0"/>
                         </Grid>
+
                         <TextBlock Style="{StaticResource FieldLabel}" Margin="0,0,0,6" Text="Папка логов (для диагностики)"/>
                         <TextBox Style="{StaticResource PathBox}" Text="{Binding LogDirText, Mode=OneWay}"/>
+
                         <TextBlock Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Text="ИСТОРИЯ ДИКТОВОК"/>
                         <Button Content="Очистить всю историю"
                                 Command="{Binding ClearHistoryAllCommand}"
                                 Style="{StaticResource DangerButton}"
                                 HorizontalAlignment="Left"
                                 Margin="0,8,0,12"/>
+
                         <TextBlock Style="{StaticResource FieldLabel}" Text="Удалить диапазон (дд.мм.гггг):"/>
                         <StackPanel Orientation="Horizontal">
                             <TextBox Style="{StaticResource DarkBox}" Width="110"
@@ -4169,6 +4440,7 @@ SIZE: 14468 bytes
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+
             <TabItem Header="Словарь">
                 <StackPanel Margin="12">
                     <TextBlock Style="{StaticResource FieldLabel}"
@@ -4182,11 +4454,13 @@ SIZE: 14468 bytes
                 </StackPanel>
             </TabItem>
         </TabControl>
+
         <TextBlock Grid.Row="2"
                    Text="{Binding StatusMessage}"
                    Foreground="{StaticResource BrushMuted}"
                    TextWrapping="Wrap"
                    Margin="0,8,0,8"/>
+
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Сохранить"
                     Command="{Binding SaveCommand}"
@@ -4741,7 +5015,7 @@ license: MIT
 
 ------------------------------------------------
 FILE: для ии\Промт\переделанное ии\Задача.txt
-SIZE: 13062 bytes
+SIZE: 12936 bytes
 ------------------------------------------------
 #================================================#
 
@@ -4778,62 +5052,54 @@ license: MIT
 
 ### 2. Заметки к задаче [ЗАМОРОЖЕННЫЙ БЛОК]
 === ПЛАН ===
-
 Шаг 1: Монохромная тёмная тема (дизайн-система вместо разноцветных акцентов)
 Файлы:
-- (новый файл) `code/Themes/MonoDark.xaml` — ResourceDictionary: серая палитра (фон #0B0B0D, панели #16161A, границы #2A2A30, текст #E8E8E8, приглушённый #9A9AA0), кисти и базовые стили Button/TextBox/CheckBox/ComboBox/TabItem/ScrollViewer.
-- `code/App.xaml` — подключить MonoDark.xaml в Application.Resources, чтобы обе окна тянули один стиль.
-- `code/MainWindow.xaml` — убрать фиолетовый #6C5CE7 и красный #E74C3C, перевести PTT-кнопку, панели и поле транскрипта на серую палитру (запись = инверсия белый/чёрный), выровнять отступы и типографику.
-- `code/Windows/SettingsWindow.xaml` — те же серые стили для вкладок, полей и кнопок вместо фиолетовых.
-- `code/Services/LevelMeter.cs` — монохромная заливка VU-метра (тёмно-серый → белый), без цветного градиента.
+(новый файл) code/Themes/MonoDark.xaml — ResourceDictionary: серая палитра (фон #0B0B0D, панели #16161A, границы #2A2A30, текст #E8E8E8, приглушённый #9A9AA0), кисти и базовые стили Button/TextBox/CheckBox/ComboBox/TabItem/ScrollViewer.
+code/App.xaml — подключить MonoDark.xaml в Application.Resources, чтобы обе окна тянули один стиль.
+code/MainWindow.xaml — убрать фиолетовый #6C5CE7 и красный #E74C3C, перевести PTT-кнопку, панели и поле транскрипта на серую палитру (запись = инверсия белый/чёрный), выровнять отступы и типографику.
+code/Windows/SettingsWindow.xaml — те же серые стили для вкладок, полей и кнопок вместо фиолетовых.
+code/Services/LevelMeter.cs — монохромная заливка VU-метра (тёмно-серый → белый), без цветного градиента.
 Критерий готовности: в UI не осталось цветных акцентов (только чёрный/белый/серый), главное окно и настройки используют одну палитру из MonoDark.xaml.
-
 Шаг 2: Профессиональный хром окон: тёмные тайтл-бары и иконка приложения
 Файлы:
-- (новый файл) `code/Assets/icon.ico` — монохромная иконка (микрофон, 32/64/128 px, чёрно-белая).
-- `code/Leron.Audio.csproj` — ApplicationIcon = Assets/icon.ico.
-- `code/App.xaml.cs` — глобально включать тёмный режим тайтл-бара DWM (DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE) через class-callback на Window.LoadedEvent для всех окон, включая SettingsWindow.
-- `code/MainWindow.xaml` — Icon = иконка приложения в заголовке и таскбаре.
-- `code/Windows/SettingsWindow.xaml` — та же иконка в заголовке.
+(новый файл) code/Assets/icon.ico — монохромная иконка (микрофон, 32/64/128 px, чёрно-белая).
+code/Leron.Audio.csproj — ApplicationIcon = Assets/icon.ico.
+code/App.xaml.cs — глобально включать тёмный режим тайтл-бара DWM (DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE) через class-callback на Window.LoadedEvent для всех окон, включая SettingsWindow.
+code/MainWindow.xaml — Icon = иконка приложения в заголовке и таскбаре.
+code/Windows/SettingsWindow.xaml — та же иконка в заголовке.
 Критерий готовности: тайтл-бары обоих окон тёмные (не светло-серые), в заголовке, таскбаре и .exe видна монохромная иконка.
-
 Шаг 3: Мини-оверлей во время записи (пилюля как у Murmur, без красной точки)
 Файлы:
-- (новый файл) `code/Windows/RecordingOverlay.xaml` —_borderless_ пилюля: AllowsTransparency, Topmost, без задачи в таскбаре, скруглённый чёрный фон, монохромные вертикальные бары волны + таймер mm:ss; красной точки нет.
-- (новый файл) `code/Windows/RecordingOverlay.xaml.cs` — показ/скрытие, тик таймера, анимация баров от SamplesAvailable; второе состояние «Распознаю…» после отпускания хоткея.
-- `code/ViewModels/MainViewModel.cs` — открывать оверлей на RecordPressed/StartRecording, переводить в «Распознаю…» на StopRecording, скрывать после результата или ошибки.
+(новый файл) code/Windows/RecordingOverlay.xaml —borderless пилюля: AllowsTransparency, Topmost, без задачи в таскбаре, скруглённый чёрный фон, монохромные вертикальные бары волны + таймер mm:ss; красной точки нет.
+(новый файл) code/Windows/RecordingOverlay.xaml.cs — показ/скрытие, тик таймера, анимация баров от SamplesAvailable; второе состояние «Распознаю…» после отпускания хоткея.
+code/ViewModels/MainViewModel.cs — открывать оверлей на RecordPressed/StartRecording, переводить в «Распознаю…» на StopRecording, скрывать после результата или ошибки.
 Критерий готовности: зажал F4 — сверху по центру появилась пилюля с волной и таймером без красной точки; отпустил — показала «Распознаю…» и скрылась после результата; в таскбаре оверлей не виден.
-
 Шаг 4: Скорость распознавания до уровня Murmur (устранение корневых тормозов)
 Файлы:
-- `code/Services/WhisperNetService.cs` — кешировать WhisperProcessor (строить один раз на модель, не на каждую диктовку), потоки = ProcessorCount, одиночная температура (без fallback-пересэмплирований), beam=1, отключить таймстампы для скорости.
-- `code/App.xaml.cs` — фоновый warm-up модели при старте приложения (загрузка фабрики/процессора без блокировки UI), чтобы первая диктовка не висела.
-- `code/Leron.Audio.csproj` — добавить PackageReference Whisper.net.Runtime.Vulkan ТОЛЬКО если на машине есть дискретная GPU (NVIDIA/AMD); если GPU нет — пункт пропускаем, остаются CPU-оптимизации выше.
-- `code/ViewModels/MainViewModel.cs` — выводить в статус время распознавания («Распознано за 1.8 с») для замеров и сравнения с Murmur.
+code/Services/WhisperNetService.cs — кешировать WhisperProcessor (строить один раз на модель, не на каждую диктовку), потоки = ProcessorCount, одиночная температура (без fallback-пересэмплирований), beam=1, отключить таймстампы для скорости.
+code/App.xaml.cs — фоновый warm-up модели при старте приложения (загрузка фабрики/процессора без блокировки UI), чтобы первая диктовка не висела.
+code/Leron.Audio.csproj — добавить PackageReference Whisper.net.Runtime.Vulkan ТОЛЬКО если на машине есть дискретная GPU (NVIDIA/AMD); если GPU нет — пункт пропускаем, остаются CPU-оптимизации выше.
+code/ViewModels/MainViewModel.cs — выводить в статус время распознавания («Распознано за 1.8 с») для замеров и сравнения с Murmur.
 Критерий готовности: повторные диктовки заметно быстрее прежних (процессор не пересоздаётся), первая диктовка быстрая благодаря warm-up, в статусе видно измеренное время; UI не подвисает во время загрузки модели.
-
 Шаг 5: Качество RU/EN (code-switching) и словарь технических терминов
 Файлы:
-- `code/Services/WhisperNetService.cs` — передавать initial prompt из настроек (короткая двуязычная подсказка с техническими терминами), язык оставить auto.
-- `code/Services/SettingsService.cs` — новое поле настроек InitialPrompt (словарь-подсказка), по умолчанию заполнен типовыми EN-терминами программиста.
-- `code/ViewModels/SettingsViewModel.cs` — свойство InitialPrompt, сохранение в settings.json, применение без перезапуска; кнопка «Диагностика» (модель/рантайм GPU/микрофоны/статус) в StatusMessage.
-- `code/Windows/SettingsWindow.xaml` — поле «Словарь-подсказка (термины)» на вкладке «Модель» + кнопка «Диагностика».
+code/Services/WhisperNetService.cs — передавать initial prompt из настроек (короткая двуязычная подсказка с техническими терминами), язык оставить auto.
+code/Services/SettingsService.cs — новое поле настроек InitialPrompt (словарь-подсказка), по умолчанию заполнен типовыми EN-терминами программиста.
+code/ViewModels/SettingsViewModel.cs — свойство InitialPrompt, сохранение в settings.json, применение без перезапуска; кнопка «Диагностика» (модель/рантайм GPU/микрофоны/статус) в StatusMessage.
+code/Windows/SettingsWindow.xaml — поле «Словарь-подсказка (термины)» на вкладке «Модель» + кнопка «Диагностика».
 Критерий готовности: русская речь с английскими терминами (commit, deploy, backend, breakpoint…) распознаётся с латиницей, а не транслитом; словарь правится в настройках и применяется сразу; диагностика показывает окружение.
-
 Шаг 6: Общие улучшения: автозапуск с Windows и безопасная авто-вставка
 Файлы:
-- (новый файл) `code/Services/AutostartService.cs` — включение/выключение автозапуска через ключ реестра HKCU Run (без планировщика).
-- `code/Services/ClipboardService.cs` — перед эмуляцией Ctrl+V проверять GetForegroundWindow: не вставлять в собственное окно LERON-AUDIO (fallback — только буфер).
-- `code/ViewModels/SettingsViewModel.cs` — чекбокс «Запускать с Windows» на вкладке «Запуск», сохранение через AutostartService.
-- `code/Windows/SettingsWindow.xaml` — чекбокс автозапуска на вкладке «Запуск».
+(новый файл) code/Services/AutostartService.cs — включение/выключение автозапуска через ключ реестра HKCU Run (без планировщика).
+code/Services/ClipboardService.cs — перед эмуляцией Ctrl+V проверять GetForegroundWindow: не вставлять в собственное окно LERON-AUDIO (fallback — только буфер).
+code/ViewModels/SettingsViewModel.cs — чекбокс «Запускать с Windows» на вкладке «Запуск», сохранение через AutostartService.
+code/Windows/SettingsWindow.xaml — чекбокс автозапуска на вкладке «Запуск».
 Критерий готовности: галка автозапуска переживает перезагрузку Windows; Ctrl+V никогда не прилетает в окно самого LERON-AUDIO.
-
 Шаг 7: Документация и контрольный прогон
 Файлы:
-- (новый файл) `docs/MANUAL_TEST.md` — чек-лист: монохромность UI, тёмные тайтл-бары, оверлей-пилюля без красной точки, замер скорости 3 диктовок, RU/EN-фраза с терминами, авто-вставка в Блокнот, автозапуск.
-- `для ии/информация/TASK.md` — обновить чек-лист релиза 1 новыми пунктами (тема, оверлей, скорость, RU/EN, автозапуск) со статусами.
+(новый файл) docs/MANUAL_TEST.md — чек-лист: монохромность UI, тёмные тайтл-бары, оверлей-пилюля без красной точки, замер скорости 3 диктовок, RU/EN-фраза с терминами, авто-вставка в Блокнот, автозапуск.
+для ии/информация/TASK.md — обновить чек-лист релиза 1 новыми пунктами (тема, оверлей, скорость, RU/EN, автозапуск) со статусами.
 Критерий готовности: ручной сценарий из MANUAL_TEST.md проходит 3 раза подряд без ошибок; TASK.md отражает фактическое состояние релиза 1.
-
 === КОНЕЦ ПЛАНА ===
 
 ### 3. Файлы

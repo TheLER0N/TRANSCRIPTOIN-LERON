@@ -6,10 +6,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Leron.Audio.Services;
+using Leron.Audio.Windows;
 
 namespace Leron.Audio.ViewModels;
 
@@ -40,6 +42,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly RuntimeService _runtime;
     private readonly DispatcherTimer _timer;
     private readonly Stopwatch _recordSw = new();
+    private RecordingOverlay? _overlay;
 
     [ObservableProperty] private bool _isRecording;
     [ObservableProperty] private bool _isRecognizing;
@@ -56,6 +59,7 @@ public sealed partial class MainViewModel : ObservableObject
     public string RecordButtonText => IsRecording
         ? "● Идёт запись... Отпусти для распознавания"
         : "Нажми и держи F4 (или эту кнопку)";
+
     public string StatusPillText => IsRecording ? "ЗАПИСЬ…" : IsRecognizing ? "РАСПОЗНАЮ…" : "ГОТОВ К ЗАПИСИ";
     public bool ShowRecord => CurrentPage == "Record";
     public bool ShowHistory => CurrentPage == "History";
@@ -84,10 +88,13 @@ public sealed partial class MainViewModel : ObservableObject
         _settings = settings;
         _history = history;
         _runtime = runtime;
+
         _hotkey.RecordPressed += OnRecordPressed;
         _hotkey.RecordReleased += OnRecordReleased;
+
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => RecordTimerText = _recordSw.Elapsed.ToString(@"hh\:mm\:ss");
+
         try
         {
             _hotkey.Register(_settings.Current.RecordHotkey);
@@ -97,6 +104,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             StatusText = $"Ошибка регистрации хоткея: {ex.Message}";
         }
+
         RefreshCounters();
         RefreshHistory();
     }
@@ -134,8 +142,6 @@ public sealed partial class MainViewModel : ObservableObject
         StatusText = $"Открыта сессия от {value.WhenText} ({value.Chars} символов).";
     }
 
-    /// Вызывается из окна после закрытия настроек и при старте: тянет счётчики,
-    /// имя микрофона, хоткей и флаги обработки без перезапуска приложения.
     public void RefreshCounters()
     {
         HotkeyLabel = _settings.Current.RecordHotkey;
@@ -143,14 +149,17 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(RecordHint));
         OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(NoiseSuppressionText));
+
         var names = NAudioCaptureService.EnumerateMicrophones();
         int id = _settings.Current.MicrophoneId;
         MicrophoneName = id >= 0 && id < names.Count ? names[id] : "Системный микрофон";
         OnPropertyChanged(nameof(MicrophoneName));
+
         SessionsToday = _history.CountToday();
         WordsToday = _history.WordsToday();
         OnPropertyChanged(nameof(SessionsToday));
         OnPropertyChanged(nameof(WordsToday));
+
         var all = _history.LoadAll();
         LastSessionText = all.Count > 0
             ? $"Последняя сессия: {all[0].Text.Length} символов"
@@ -163,6 +172,7 @@ public sealed partial class MainViewModel : ObservableObject
         var items = string.IsNullOrWhiteSpace(HistorySearch)
             ? _history.LoadAll()
             : _history.Search(HistorySearch);
+
         HistoryItems.Clear();
         foreach (var r in items)
         {
@@ -191,12 +201,23 @@ public sealed partial class MainViewModel : ObservableObject
     private void StartRecording()
     {
         if (IsRecording) return;
-        _capture.Start();
+        try
+        {
+            _capture.Start();
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Микрофон не стартовал: {ex.Message}";
+            SafeOverlay(o => o.ShowMicOff());
+            return;
+        }
+
         IsRecording = true;
         RecordTimerText = "00:00:00";
         _recordSw.Restart();
         _timer.Start();
         StatusText = "Запись...";
+        SafeOverlay(o => o.ShowRecording(_capture));
     }
 
     [RelayCommand]
@@ -207,17 +228,27 @@ public sealed partial class MainViewModel : ObservableObject
         IsRecording = false;
         _timer.Stop();
         _recordSw.Stop();
-        RecordTimerText = _recordSw.Elapsed.ToString(@"hh\:mm\:ss");
-        // Защита от пустой записи: whisper-cli падает на WAV без данных
-        if (_capture.LastDataBytes < 9600) // ~0.3 c при 16 кГц 16 бит моно
+        RecordTimerText = "00:00:00";
+
+        if (_capture.LastDataBytes < 9600) 
         {
             Transcript = string.Empty;
             TranscriptSegments.Clear();
             StatusText = "Микрофон не дал звука. Выбери устройство: Настройки → Аудио.";
+            SafeOverlay(o => o.ShowMicOff());
             return;
         }
+
+        // DSP: постобработка WAV перед распознаванием
+        if (_settings.Current.NormalizeAudio || _settings.Current.NoiseGate)
+        {
+            AudioPostProcessor.TryProcess(path, _settings.Current.NoiseGate, _settings.Current.NormalizeAudio);
+        }
+
         IsRecognizing = true;
         StatusText = "Распознаю...";
+        SafeOverlay(o => o.ShowRecognizing());
+
         var sw = Stopwatch.StartNew();
         try
         {
@@ -225,13 +256,16 @@ public sealed partial class MainViewModel : ObservableObject
             var text = result.Text;
             sw.Stop();
             var spent = $"Распознано за {sw.Elapsed.TotalSeconds:F1} с.";
+
             if (string.IsNullOrWhiteSpace(text))
             {
                 Transcript = string.Empty;
                 TranscriptSegments.Clear();
                 StatusText = $"Тишина: текст не распознан. {spent}";
+                SafeOverlay(o => o.HideOverlay());
                 return;
             }
+
             Transcript = text;
             TranscriptSegments.Clear();
             foreach (var s in result.Segments)
@@ -242,7 +276,7 @@ public sealed partial class MainViewModel : ObservableObject
                     Text = s.Text
                 });
             }
-            // История: сессия с таймкодами, моделью и фактическим бэкендом
+
             _history.Append(new HistoryRecord
             {
                 DurationSec = sw.Elapsed.TotalSeconds,
@@ -256,9 +290,12 @@ public sealed partial class MainViewModel : ObservableObject
                 Model = CurrentModelName(),
                 Runtime = _runtime.ResolveBackend(_settings.Current.RuntimeMode)
             });
+
             RefreshCounters();
             if (CurrentPage == "History") RefreshHistory();
+
             await _clipboard.SetTextAsync(text);
+
             if (_settings.Current.AutoPaste)
             {
                 StatusText = $"{spent} Вставляю в активное окно...";
@@ -269,6 +306,8 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 StatusText = $"{spent} Текст скопирован в буфер.";
             }
+
+            SafeOverlay(o => o.HideOverlay());
         }
         catch (Exception ex)
         {
@@ -276,6 +315,7 @@ public sealed partial class MainViewModel : ObservableObject
             Transcript = string.Empty;
             TranscriptSegments.Clear();
             StatusText = $"Ошибка распознавания: {ex.Message}";
+            SafeOverlay(o => o.HideOverlay());
         }
         finally
         {
@@ -297,6 +337,23 @@ public sealed partial class MainViewModel : ObservableObject
         Transcript = string.Empty;
         TranscriptSegments.Clear();
         StatusText = "Очищено.";
+    }
+
+    private void SafeOverlay(Action<RecordingOverlay> action)
+    {
+        try
+        {
+            var app = Application.Current;
+            if (app is null) return;
+            app.Dispatcher.Invoke(() =>
+            {
+                _overlay ??= new RecordingOverlay();
+                action(_overlay);
+            });
+        }
+        catch
+        {
+        }
     }
 
     private string CurrentModelName()

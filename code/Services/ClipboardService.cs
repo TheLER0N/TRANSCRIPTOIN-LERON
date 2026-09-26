@@ -1,3 +1,6 @@
+// code/Services/ClipboardService.cs
+using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using WindowsInput;
@@ -8,6 +11,12 @@ namespace Leron.Audio.Services;
 public sealed class ClipboardService : IClipboardService
 {
     private readonly SettingsService _settings;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     public ClipboardService(SettingsService settings)
     {
@@ -23,6 +32,24 @@ public sealed class ClipboardService : IClipboardService
     public async Task PasteIntoActiveWindowAsync()
     {
         if (!_settings.Current.AutoPaste) return;
+
+        try
+        {
+            var hwnd = GetForegroundWindow();
+            if (hwnd != IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out uint pid);
+                if (pid == Environment.ProcessId)
+                {
+                    // Фокус на самом LERON-AUDIO — пропускаем авто-вставку, текст уже в буфере
+                    return;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback: если не удалось определить окно
+        }
 
         await Task.Delay(150);
         try
