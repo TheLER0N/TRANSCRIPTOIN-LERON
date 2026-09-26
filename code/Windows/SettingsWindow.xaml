@@ -59,11 +59,15 @@
                                Text="Путь к ggml-*.bin (пусто = автопоиск в корне проекта)"/>
                     <TextBox Style="{StaticResource DarkBox}"
                              Text="{Binding ModelPath, UpdateSourceTrigger=PropertyChanged}"/>
-                    <Button Content="Проверить"
-                            Command="{Binding CheckModelCommand}"
-                            Style="{StaticResource ActionButton}"
-                            HorizontalAlignment="Left"
-                            Margin="0,10,0,8"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,8">
+                        <Button Content="Проверить"
+                                Command="{Binding CheckModelCommand}"
+                                Style="{StaticResource ActionButton}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Диагностика"
+                                Command="{Binding RunDiagnosticsCommand}"
+                                Style="{StaticResource ActionButton}"/>
+                    </StackPanel>
                     <TextBlock Text="{Binding ModelStatusText}" TextWrapping="Wrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -76,6 +80,15 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    <TextBlock Style="{StaticResource FieldLabel}"
+                               Margin="0,12,0,6"
+                               Text="Словарь-подсказка (термины): учит Whisper писать EN-слова латиницей внутри русской речи"/>
+                    <TextBox Style="{StaticResource DarkBox}"
+                             Height="90"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             Text="{Binding InitialPrompt, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Запуск">

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,6 +23,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private IReadOnlyList<string> _microphoneNames = Array.Empty<string>();
     [ObservableProperty] private int _selectedMicrophoneIndex;
+    [ObservableProperty] private string _initialPrompt = string.Empty;
 
     public SettingsViewModel(SettingsService settings, IHotkeyService hotkey)
     {
@@ -36,12 +38,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         AutoPaste = _settings.Current.AutoPaste;
         StartMinimized = _settings.Current.StartMinimized;
         ModelPath = _settings.Current.ModelPath ?? string.Empty;
-
+        InitialPrompt = _settings.Current.InitialPrompt ?? string.Empty;
         var names = new List<string> { "Системный микрофон по умолчанию" };
         names.AddRange(NAudioCaptureService.EnumerateMicrophones());
         MicrophoneNames = names;
         SelectedMicrophoneIndex = Math.Clamp(_settings.Current.MicrophoneId + 1, 0, names.Count - 1);
-
         ValidateModel();
         StatusMessage = string.Empty;
     }
@@ -63,6 +64,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         ValidateModel();
         StatusMessage = ModelStatusText;
+    }
+
+    [RelayCommand]
+    private void RunDiagnostics()
+    {
+        var sb = new StringBuilder();
+        sb.Append("Модель: ");
+        var model = string.IsNullOrWhiteSpace(ModelPath) ? ModelLocator.FindModel() : ModelPath.Trim();
+        sb.Append(!string.IsNullOrWhiteSpace(model) && File.Exists(model)
+            ? Path.GetFileName(model)
+            : "НЕ НАЙДЕНА");
+        sb.Append(" | Микрофонов: ").Append(Math.Max(0, MicrophoneNames.Count - 1));
+        sb.Append(" | Выбран: ").Append(SelectedMicrophoneIndex == 0
+            ? "системный"
+            : MicrophoneNames[SelectedMicrophoneIndex]);
+        sb.Append(" | Потоков: ").Append(Math.Max(2, Environment.ProcessorCount / 2));
+        sb.Append(" | GPU-рантайм: не подключён (CPU)");
+        StatusMessage = sb.ToString();
     }
 
     [RelayCommand]
@@ -88,7 +107,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (mods.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
         if (mods.HasFlag(ModifierKeys.Windows)) parts.Add("Windows");
         parts.Add(e.Key.ToString());
-
         HotkeyText = string.Join("+", parts);
         e.Handled = true;
     }
@@ -111,8 +129,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Current.StartMinimized = StartMinimized;
         _settings.Current.ModelPath = string.IsNullOrWhiteSpace(ModelPath) ? null : ModelPath.Trim();
         _settings.Current.MicrophoneId = SelectedMicrophoneIndex - 1;
+        _settings.Current.InitialPrompt = string.IsNullOrWhiteSpace(InitialPrompt)
+            ? Settings.DefaultInitialPrompt
+            : InitialPrompt.Trim();
         _settings.Save();
         ValidateModel();
-        StatusMessage = "Сохранено. Хоткей и микрофон обновлены без перезапуска.";
+        StatusMessage = "Сохранено. Хоткей, микрофон и словарь применены без перезапуска.";
     }
 }
