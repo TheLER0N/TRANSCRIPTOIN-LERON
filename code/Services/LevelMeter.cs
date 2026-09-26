@@ -45,11 +45,12 @@ public sealed class LevelMeter : FrameworkElement
         var bounds = new Rect(new Point(0, 0), RenderSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
+        // Background
         dc.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromRgb(38, 40, 54)),
-            null,
+            new SolidColorBrush(Color.FromRgb(22, 22, 26)), // #16161A
+            new Pen(new SolidColorBrush(Color.FromRgb(42, 42, 48)), 1), // #2A2A30
             bounds,
-            8, 8);
+            6, 6);
 
         double fillWidth = bounds.Width * Math.Clamp(_level, 0f, 1f);
         if (fillWidth > 4)
@@ -59,15 +60,20 @@ public sealed class LevelMeter : FrameworkElement
                 StartPoint = new Point(0, 0.5),
                 EndPoint = new Point(1, 0.5)
             };
-            brush.GradientStops.Add(new GradientStop(Color.FromRgb(46, 204, 113), 0.0));
-            brush.GradientStops.Add(new GradientStop(Color.FromRgb(241, 196, 15), 0.6));
-            brush.GradientStops.Add(new GradientStop(Color.FromRgb(231, 76, 60), 1.0));
+            // Monochrome gradient: dark gray -> light gray -> white
+            brush.GradientStops.Add(new GradientStop(Color.FromRgb(90, 90, 95), 0.0));
+            brush.GradientStops.Add(new GradientStop(Color.FromRgb(180, 180, 185), 0.6));
+            brush.GradientStops.Add(new GradientStop(Color.FromRgb(232, 232, 232), 1.0));
 
-            dc.DrawRoundedRectangle(
-                brush,
-                null,
-                new Rect(0, 0, fillWidth, bounds.Height),
-                8, 8);
+            var fillRect = new Rect(1, 1, fillWidth - 2, bounds.Height - 2);
+            if (fillRect.Width > 0 && fillRect.Height > 0)
+            {
+                dc.DrawRoundedRectangle(
+                    brush,
+                    null,
+                    fillRect,
+                    4, 4);
+            }
         }
     }
 }

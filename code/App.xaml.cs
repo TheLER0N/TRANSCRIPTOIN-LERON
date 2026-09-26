@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using Leron.Audio.Services;
 using Leron.Audio.ViewModels;
@@ -27,6 +29,20 @@ public partial class App : Application
         if (settings.Current.StartMinimized)
             window.WindowState = WindowState.Minimized;
         window.Show();
+
+        // Прогрев модели в фоне: первая диктовка не должна висеть
+        var whisper = _serviceProvider.GetRequiredService<IWhisperService>();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await whisper.WarmUpAsync(CancellationToken.None);
+            }
+            catch
+            {
+                // Ошибка всплывёт статусом на первой диктовке
+            }
+        });
     }
 
     private static void ConfigureServices(IServiceCollection services)

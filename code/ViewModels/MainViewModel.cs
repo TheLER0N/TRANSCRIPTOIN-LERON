@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -94,13 +95,17 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         StatusText = "Распознаю...";
+        var sw = Stopwatch.StartNew();
         try
         {
             var text = await _whisper.TranscribeAsync(path, CancellationToken.None);
+            sw.Stop();
+            var spent = $"Распознано за {sw.Elapsed.TotalSeconds:F1} с.";
+
             if (string.IsNullOrWhiteSpace(text))
             {
                 Transcript = string.Empty;
-                StatusText = "Тишина: текст не распознан.";
+                StatusText = $"Тишина: текст не распознан. {spent}";
                 return;
             }
 
@@ -109,14 +114,18 @@ public sealed partial class MainViewModel : ObservableObject
 
             if (_settings.Current.AutoPaste)
             {
-                StatusText = "Вставляю в активное окно...";
+                StatusText = $"{spent} Вставляю в активное окно...";
                 await _clipboard.PasteIntoActiveWindowAsync();
+                StatusText = $"{spent} Текст скопирован и вставлен.";
             }
-
-            StatusText = "Готово. Текст скопирован в буфер.";
+            else
+            {
+                StatusText = $"{spent} Текст скопирован в буфер.";
+            }
         }
         catch (Exception ex)
         {
+            sw.Stop();
             Transcript = string.Empty;
             StatusText = $"Ошибка распознавания: {ex.Message}";
         }
@@ -138,5 +147,6 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void OnRecordPressed() => StartRecording();
+
     private void OnRecordReleased() => _ = StopRecording();
 }
