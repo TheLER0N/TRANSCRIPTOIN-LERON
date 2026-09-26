@@ -3,7 +3,7 @@ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 xmlns:controls="clr-namespace:Leron.Audio.Controls"
 Title="LERON-AUDIO · Запись"
-Width="440" Height="88"
+Width="300" Height="56"
 WindowStyle="None"
 AllowsTransparency="True"
 Background="Transparent"
@@ -13,42 +13,44 @@ ShowActivated="False"
 Focusable="False"
 ResizeMode="NoResize"
 IsHitTestVisible="False">
+<!-- Компактная пилюля: полный pill-радиус (28 = половина высоты), плотная волна,
+мелкий таймер. Не светится в таскбаре, не крадёт фокус и клики. -->
 <Border x:Name="Root"
 Background="#E60B0F10"
 BorderBrush="{StaticResource BrushBorder}"
 BorderThickness="1"
-CornerRadius="22"
-Padding="18,12">
+CornerRadius="28"
+Padding="16,10">
 <Border.RenderTransform>
 <TranslateTransform x:Name="Slide" Y="160"/>
 </Border.RenderTransform>
 <Grid>
 <!-- Состояние: запись -->
 <StackPanel x:Name="StateRecording" Orientation="Horizontal" VerticalAlignment="Center">
-<Viewbox Width="22" Height="22" Margin="0,0,12,0">
+<Viewbox Width="18" Height="18" Margin="0,0,10,0">
 <Path Fill="{StaticResource BrushAccent}"
 Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
 </Viewbox>
-<controls:LevelMeter x:Name="OverlayBars" Width="250" Height="36" VerticalBars="True" Margin="0,0,14,0"/>
-<TextBlock x:Name="TimerText" Text="00:00" FontFamily="Consolas" FontSize="18"
+<controls:LevelMeter x:Name="OverlayBars" Width="168" Height="26" VerticalBars="True" Margin="0,0,12,0"/>
+<TextBlock x:Name="TimerText" Text="00:00" FontFamily="Consolas" FontSize="15"
 Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
 </StackPanel>
 <!-- Состояние: распознаю -->
 <StackPanel x:Name="StateRecognizing" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-<Ellipse Width="10" Height="10" Fill="{StaticResource BrushAccent}" Margin="0,0,12,0"/>
-<TextBlock Text="Распознаю…" FontSize="16" FontWeight="SemiBold"
+<Ellipse Width="8" Height="8" Fill="{StaticResource BrushAccent}" Margin="0,0,10,0"/>
+<TextBlock Text="Распознаю…" FontSize="14" FontWeight="SemiBold"
 Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
 </StackPanel>
 <!-- Состояние: микрофон выключен -->
 <StackPanel x:Name="StateMicOff" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-<Viewbox Width="22" Height="22" Margin="0,0,12,0">
+<Viewbox Width="18" Height="18" Margin="0,0,10,0">
 <Grid>
 <Path Fill="{StaticResource BrushDanger}"
 Data="F1 M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/>
 <Path Stroke="{StaticResource BrushDanger}" StrokeThickness="2.4" Data="M4,4 L20,20"/>
 </Grid>
 </Viewbox>
-<TextBlock Text="Микрофон выключен или недоступен" FontSize="15" FontWeight="SemiBold"
+<TextBlock Text="Микрофон выключен или недоступен" FontSize="13" FontWeight="SemiBold"
 Foreground="{StaticResource BrushDanger}" VerticalAlignment="Center"/>
 </StackPanel>
 </Grid>
