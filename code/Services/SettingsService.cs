@@ -7,8 +7,13 @@ namespace Leron.Audio.Services;
 
 public sealed class Settings
 {
+    /// Двуязычный initial prompt: русские связки + английские технические термины.
+    /// Whisper использует этот промпт как затравку декодера — увидев рядом русскую
+    /// фразу и латиницу, модель НЕ будет транслитерировать английские слова.
+    /// Это главный рычаг качества code-switching RU↔EN.
     public const string DefaultInitialPrompt =
-        "Русская речь с английскими техническими терминами без транслита: " +
+        "Так, значит, короче, смотри, в общем, слушай, ну, вот. " +
+        "Русская речь с английскими терминами без транслита: " +
         "commit, deploy, backend, frontend, breakpoint, debug, runtime, build, release, " +
         "framework, library, package, dependency, NuGet, API, JSON, token, hotkey, clipboard, " +
         "microphone, whisper, model, GPU, CPU, RAM, SSD, IDE, Visual Studio, GitHub, repository, " +
@@ -17,7 +22,12 @@ public sealed class Settings
         "UI, GUI, WPF, .NET, Windows, Docker, container, server, client, HTTP, REST, SQL, " +
         "script, batch, file, folder, path, log, console, terminal, error, warning, exception, " +
         "stack trace, refactoring, interface, class, method, function, variable, string, " +
-        "async, await, callback, event, handler, service, singleton, factory, observer.";
+        "async, await, callback, event, handler, service, singleton, factory, observer, " +
+        "React, Vue, Angular, TypeScript, JavaScript, Python, C#, Rust, Go, Kotlin, Swift, " +
+        "webpack, vite, npm, yarn, pnpm, node, deno, bun, redis, postgres, mongo, mysql, " +
+        "kafka, rabbit, nginx, apache, linux, ubuntu, debian, arch, macos, iphone, android, " +
+        "pixel, samsung, xiaomi, tesla, apple, microsoft, google, amazon, facebook, meta, " +
+        "openai, anthropic, claude, gpt, llama, gemini, whisper, stable diffusion, midjourney.";
 
     public string RecordHotkey { get; set; } = "F4";
     public bool AutoPaste { get; set; } = true;
@@ -27,7 +37,6 @@ public sealed class Settings
     public string Theme { get; set; } = "Dark";
     public int MicrophoneId { get; set; } = -1; // -1 = системный микрофон по умолчанию
     public string InitialPrompt { get; set; } = DefaultInitialPrompt;
-
     // Устройство исполнения Whisper: auto / cpu / vulkan / cuda
     public string RuntimeMode { get; set; } = "auto";
     // Постобработка записи перед распознаванием
@@ -40,7 +49,6 @@ public sealed class Settings
 public sealed class SettingsService
 {
     private readonly string _path;
-
     public Settings Current { get; private set; } = new();
 
     public SettingsService()
@@ -57,6 +65,13 @@ public sealed class SettingsService
             {
                 var json = File.ReadAllText(_path);
                 Current = JsonSerializer.Deserialize<Settings>(json) ?? new Settings();
+                // Если пользовательский InitialPrompt пустой — подставляем свежий дефолт.
+                // Это нужно, чтобы новые слова из DefaultInitialPrompt подтягивались
+                // у тех, кто чистил словарь вручную, но не перезаписывали заполненный.
+                if (string.IsNullOrWhiteSpace(Current.InitialPrompt))
+                {
+                    Current.InitialPrompt = Settings.DefaultInitialPrompt;
+                }
             }
         }
         catch

@@ -15,27 +15,27 @@ echo.
 :: ── Проверка окружения ──────────────────────────────────────────
 where dotnet >nul 2>&1
 if !errorlevel! neq 0 (
-echo   [XX] dotnet не найден. Установи .NET 8 SDK.
-pause
-exit /b 1
+    echo   [XX] dotnet не найден. Установи .NET 8 SDK.
+    pause
+    exit /b 1
 )
 if not exist "%PROJ%" (
-echo   [XX] Leron.Audio.csproj не найден: %PROJ%
-pause
-exit /b 1
+    echo   [XX] Leron.Audio.csproj не найден: %PROJ%
+    pause
+    exit /b 1
 )
 if not exist "%MODEL%" (
-echo   [XX] Модель Whisper не найдена: %MODEL%
-echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
-pause
-exit /b 1
+    echo   [XX] Модель Whisper не найдена: %MODEL%
+    echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
+    pause
+    exit /b 1
 )
 :: ── Ввод данных релиза ──────────────────────────────────────────
 set /p "VER=   Версия (например 1.0.0): "
 if "!VER!"=="" (
-echo   [XX] Версия не указана.
-pause
-exit /b 1
+    echo   [XX] Версия не указана.
+    pause
+    exit /b 1
 )
 set /p "TITLE=   Название (Enter = LERON-AUDIO v!VER!): "
 if "!TITLE!"=="" set "TITLE=LERON-AUDIO v!VER!"
@@ -51,67 +51,96 @@ echo ================================================================
 echo.
 set /p "CONFIRM=   Продолжить? [Y/n]: "
 if /i "!CONFIRM!"=="n" (
-echo   Отменено.
-pause
-exit /b 0
+    echo   Отменено.
+    pause
+    exit /b 0
 )
-:: ── [1/4] Сборка Release ────────────────────────────────────────
+:: ── [1/5] Зачистка release-build ────────────────────────────────
 echo.
-echo   [1/4] dotnet publish (Release)...
+echo   [1/5] Зачищаю release-build от прошлых артефактов...
 if exist "%BUILD_DIR%" (
-:: Не удаляем всю папку — бережём settings.json, если пользователь там что-то положил
-for %%F in ("%BUILD_DIR%\*.exe" "%BUILD_DIR%\*.dll" "%BUILD_DIR%\*.bin") do (
-if /i not "%%~nxF"=="settings.json" del "%%F" 2>nul
+    rd /s /q "%BUILD_DIR%" 2>nul
+    if exist "%BUILD_DIR%" (
+        echo   [XX] Не удалось удалить %BUILD_DIR% (файл занят?). Закрой приложение и повтори.
+        pause
+        exit /b 1
+    )
 )
-:: ВАЖНО (Шаг 4): папку runtimes\ НЕ удаляем — там native-библиотеки
-:: рантаймов Whisper.net (CPU/Vulkan/CUDA), они обязаны попасть в zip,
-:: иначе релиз на чужой машине молча откатится на CPU или упадёт.
-)
+mkdir "%BUILD_DIR%" >nul 2>&1
+echo   [OK] Папка пустая.
+:: ── [2/5] Сборка Release ────────────────────────────────────────
+echo.
+echo   [2/5] dotnet publish (Release, win-x64)...
 dotnet publish "%PROJ%" -c Release -r win-x64 --self-contained false -o "%BUILD_DIR%" --nologo -v q
 if !errorlevel! neq 0 (
-echo.
-echo   [XX] Сборка не удалась — повтори dotnet publish вручную.
-pause
-exit /b 1
+    echo.
+    echo   [XX] Сборка не удалась — повтори dotnet publish вручную.
+    pause
+    exit /b 1
 )
 echo   [OK] Собрано в %BUILD_DIR%
-:: ── [2/4] Копирование модели Whisper ────────────────────────────
+:: ── [3/5] Удаление пользовательских данных из release-build ─────
+:: Релиз должен быть стерильным: никаких settings.json, history.jsonl,
+:: логов, temp-папки и .part-файлов. Пользователь создаст свои данные
+:: при первом запуске на своей машине.
 echo.
-echo   [2/4] Копирую модель Whisper в релизную папку...
+echo   [3/5] Вычищаю личные данные из сборки...
+for %%F in (settings.json history.jsonl *.log *.part) do (
+    if exist "%BUILD_DIR%\%%F" (
+        del /q "%BUILD_DIR%\%%F" >nul 2>&1
+        echo         удалено: %%F
+    )
+)
+if exist "%BUILD_DIR%\temp" (
+    rd /s /q "%BUILD_DIR%\temp" >nul 2>&1
+    echo         удалено: temp^/
+)
+echo   [OK] В сборке только программа и рантаймы.
+:: ── [4/5] Добавление модели Whisper и whisper-cli ───────────────
+echo.
+echo   [4/5] Копирую модель Whisper и whisper-cli в релиз...
 copy /y "%MODEL%" "%BUILD_DIR%\ggml-large-v3-turbo.bin" >nul
 if !errorlevel! neq 0 (
-echo   [XX] Не удалось скопировать модель.
-pause
-exit /b 1
+    echo   [XX] Не удалось скопировать модель.
+    pause
+    exit /b 1
 )
 for %%A in ("%MODEL%") do set /a "MODEL_MB=%%~zA / 1048576"
-echo   [OK] Модель скопирована (~!MODEL_MB! MB)
-:: whisper-cli.exe копируем вместе с DLL, иначе релиз не запустится
+echo         модель: ggml-large-v3-turbo.bin (~!MODEL_MB! MB)
 if exist "%ROOT%build\whisper-cli.exe" (
-copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
-for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
-if exist "%ROOT%build\%%D" copy /y "%ROOT%build\%%D" "%BUILD_DIR%\%%D" >nul
+    copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
+    for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
+        if exist "%ROOT%build\%%D" copy /y "%ROOT%build\%%D" "%BUILD_DIR%\%%D" >nul
+    )
+    echo         whisper-cli.exe и DLL (резервный STT)
+) else (
+    echo         [!] whisper-cli.exe не найден в build\ — резервный STT не попадёт в релиз.
 )
-echo   [OK] whisper-cli.exe и DLL скопированы
-)
-:: ── [3/4] Создание ZIP ──────────────────────────────────────────
+:: ── Итоговый состав релиза ──────────────────────────────────────
 echo.
-echo   [3/4] Создание архива...
+echo   Что попадёт в zip:
+echo     - Leron.Audio.exe и зависимые DLL
+echo     - runtimes\ (нативные бэкенды Whisper.net: CPU/Vulkan/CUDA)
+echo     - ggml-large-v3-turbo.bin (модель распознавания)
+echo     - whisper-cli.exe + DLL (если был в build\)
+echo   НЕ попадёт:
+echo     - settings.json, history.jsonl, temp\, *.log
+echo     - папка "для ии\", "Промт\", исходники code\, *.bat-скрипты
+echo.
+:: ── [5/5] Создание ZIP и открытие страницы релиза ──────────────
+echo   [5/5] Создание архива...
 set "ZIP_NAME=LERON-AUDIO-!VER!-win-x64.zip"
 set "ZIP_PATH=%ROOT%release\!ZIP_NAME!"
 if not exist "%ROOT%release" mkdir "%ROOT%release"
 if exist "!ZIP_PATH!" del "!ZIP_PATH!"
 powershell -NoProfile -Command "Compress-Archive -Path '%BUILD_DIR%\*' -DestinationPath '!ZIP_PATH!' -Force"
 if !errorlevel! neq 0 (
-echo   [XX] Не удалось создать архив.
-pause
-exit /b 1
+    echo   [XX] Не удалось создать архив.
+    pause
+    exit /b 1
 )
 for %%A in ("!ZIP_PATH!") do set /a "ZIP_MB=%%~zA / 1048576"
 echo   [OK] Архив: !ZIP_PATH! (~!ZIP_MB! MB)
-:: ── [4/4] Открытие страницы релиза ──────────────────────────────
-echo.
-echo   [4/4] Открываю GitHub Releases...
 echo.
 echo ================================================================
 echo   ГОТОВО!

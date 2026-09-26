@@ -12,9 +12,8 @@
     <Version>0.1.0</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <NoWarn>NU1701</NoWarn>
-    <!-- Иконка приложения: подхватывается автоматически, как только положишь
-         файл code/Assets/icon.ico. Пока файла нет — сборка не ломается. -->
+    <!-- CA1416 подавлен, так как WPF и так работает только на Windows -->
+    <NoWarn>NU1701;CA1416</NoWarn>
     <ApplicationIcon Condition="Exists('Assets/icon.ico')">Assets/icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup Condition="Exists('Assets/icon.ico')">
@@ -28,9 +27,6 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="Whisper.net" Version="1.9.2-preview1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.2-preview1" />
-    <!-- Шаг 4: все рантаймы ИИ в одной сборке (выбор пользователя 1=А).
-         Vulkan закрывает AMD/Intel, Cuda — NVIDIA, CPU остаётся фолбэком.
-         Если restore не найдёт preview этих двух пакетов — ставь Version="1.9.1". -->
     <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.2-preview1" />
     <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.2-preview1" />
   </ItemGroup>

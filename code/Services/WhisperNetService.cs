@@ -17,6 +17,7 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
     private WhisperProcessor? _processor;
     private string? _builtModelPath;
     private string? _builtBackend;
+    private string? _builtPromptHash;
 
     public WhisperNetService(SettingsService settings, RuntimeService runtime)
     {
@@ -52,14 +53,17 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
             await using var stream = File.OpenRead(wavPath);
             var result = new TranscriptResult();
             var sb = new StringBuilder();
+
             await foreach (var segment in processor.ProcessAsync(stream, ct))
             {
                 ct.ThrowIfCancellationRequested();
                 var text = segment.Text?.Trim();
                 if (string.IsNullOrWhiteSpace(text))
                     continue;
+
                 if (sb.Length > 0) sb.Append(' ');
                 sb.Append(text);
+
                 result.Segments.Add(new TranscriptSegment
                 {
                     Start = segment.Start.TotalSeconds,
@@ -67,6 +71,7 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
                     Text = text
                 });
             }
+
             result.Text = sb.ToString().Trim();
             return result;
         }
@@ -81,11 +86,18 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         var model = ResolveModel()
             ?? throw new FileNotFoundException(
                 "Модель ggml-*.bin не найдена. Положи ggml-large-v3-turbo.bin в корень проекта или запусти download-model.bat.");
+
         var backend = _runtime.ResolveBackend(_settings.Current.RuntimeMode);
-        // Процессор строится ОДИН раз на пару (модель, бэкенд) и переиспользуется
-        // всеми диктовками; смена рантайма или модели в настройках пересобирает
-        // его без перезапуска приложения.
-        if (_processor is not null && _builtModelPath == model && _builtBackend == backend)
+        
+        var prompt = string.IsNullOrWhiteSpace(_settings.Current.InitialPrompt)
+            ? string.Empty
+            : _settings.Current.InitialPrompt.Trim();
+        var promptHash = $"{prompt.Length}:{prompt.GetHashCode():X8}";
+
+        if (_processor is not null 
+            && _builtModelPath == model 
+            && _builtBackend == backend 
+            && _builtPromptHash == promptHash)
             return _processor;
 
         _processor?.Dispose();
@@ -93,27 +105,32 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
         _factory?.Dispose();
         _factory = null;
 
-        // Пиннинг бэкенда выполняется ДО создания фабрики; пинится только
-        // обнаруженный на диске рантайм, иначе остаётся авто-порядок лоадера.
         _runtime.ApplyBackendPin(backend);
         _factory = WhisperFactory.FromPath(model);
 
         var language = string.IsNullOrWhiteSpace(_settings.Current.Language)
             ? "auto"
             : _settings.Current.Language;
-        // Скорость: потоки = физическим ядрам, температура 0 без fallback-пересэмплирований
-        // (TemperatureInc=0 отключает повторные проходы декодера), старый текст не тянется
-        // в новые диктовки (NoContext).
+
         var threads = Math.Max(2, Environment.ProcessorCount / 2);
-        _processor = _factory.CreateBuilder()
+
+        var builder = _factory.CreateBuilder()
             .WithLanguage(language)
             .WithNoContext()
             .WithTemperature(0f)
             .WithTemperatureInc(0f)
-            .WithThreads(threads)
-            .Build();
+            .WithThreads(threads);
+
+        if (!string.IsNullOrEmpty(prompt))
+        {
+            builder = builder.WithPrompt(prompt);
+        }
+
+        _processor = builder.Build();
+
         _builtModelPath = model;
         _builtBackend = backend;
+        _builtPromptHash = promptHash;
         return _processor;
     }
 
