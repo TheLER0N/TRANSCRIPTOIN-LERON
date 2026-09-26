@@ -1,6 +1,6 @@
 ﻿================================================================
   PROJECT REPORT : LERON-AUDIO
-  GENERATED      : 27.09.2026 02:06:01
+  GENERATED      : 27.09.2026 02:10:46
   PATH           : C:\Users\Пользователь\Desktop\LERON-AUDIO
 ================================================================
 
@@ -3503,9 +3503,9 @@ public sealed class WhisperNetService : IWhisperService, IDisposable
 
 ------------------------------------------------
 FILE: code\Themes\AccentDark.xaml
-SIZE: 17100 bytes
+SIZE: 17109 bytes
 ------------------------------------------------
-code/Themes/AccentDark.xaml
+<!-- code/Themes/AccentDark.xaml -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 <!-- Палитра Murmur-dark -->

@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 set "ROOT=%~dp0"
 set "PROJ=%ROOT%code\Leron.Audio.csproj"
 set "BUILD_DIR=%ROOT%release-build"
-set "MODEL=%ROOT%ggml-large-v3-turbo.bin"
+set "MODEL=%ROOT%ggml-medium.bin"
 echo.
 echo ================================================================
 echo   LERON-AUDIO · RELEASE TO GITHUB
@@ -26,7 +26,7 @@ if not exist "%PROJ%" (
 )
 if not exist "%MODEL%" (
     echo   [XX] Модель Whisper не найдена: %MODEL%
-    echo       Скачай ggml-large-v3-turbo.bin и положи в корень проекта.
+    echo       Скачай ggml-medium.bin и положи в корень проекта.
     pause
     exit /b 1
 )
@@ -99,14 +99,14 @@ echo   [OK] В сборке только программа и рантаймы.
 :: ── [4/5] Добавление модели Whisper и whisper-cli ───────────────
 echo.
 echo   [4/5] Копирую модель Whisper и whisper-cli в релиз...
-copy /y "%MODEL%" "%BUILD_DIR%\ggml-large-v3-turbo.bin" >nul
+copy /y "%MODEL%" "%BUILD_DIR%\ggml-medium.bin" >nul
 if !errorlevel! neq 0 (
     echo   [XX] Не удалось скопировать модель.
     pause
     exit /b 1
 )
 for %%A in ("%MODEL%") do set /a "MODEL_MB=%%~zA / 1048576"
-echo         модель: ggml-large-v3-turbo.bin (~!MODEL_MB! MB)
+echo         модель: ggml-medium.bin (~!MODEL_MB! MB)
 if exist "%ROOT%build\whisper-cli.exe" (
     copy /y "%ROOT%build\whisper-cli.exe" "%BUILD_DIR%\whisper-cli.exe" >nul
     for %%D in (whisper.dll ggml.dll ggml-base.dll ggml-cpu.dll) do (
@@ -121,7 +121,7 @@ echo.
 echo   Что попадёт в zip:
 echo     - Leron.Audio.exe и зависимые DLL
 echo     - runtimes\ (нативные бэкенды Whisper.net: CPU/Vulkan/CUDA)
-echo     - ggml-large-v3-turbo.bin (модель распознавания)
+echo     - ggml-medium.bin (модель распознавания)
 echo     - whisper-cli.exe + DLL (если был в build\)
 echo   НЕ попадёт:
 echo     - settings.json, history.jsonl, temp\, *.log
